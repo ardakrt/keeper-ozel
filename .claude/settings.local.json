@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tree:*)",
+      "Bash(npx supabase:*)",
+      "Bash(npm install:*)",
+      "Bash(nul)",
+      "Bash(npm run build:*)",
+      "Bash(done)",
+      "Bash(awk:*)",
+      "Bash(npm run dev:*)",
+      "Bash(taskkill:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(npm start -- --clear)",
+      "Bash(npx expo start:*)",
+      "Bash(dir:*)",
+      "Bash(cat:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
