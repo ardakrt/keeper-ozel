@@ -21,15 +21,6 @@ export function getOTPCodesCache(): any[] | null {
 }
 
 export default function OTPPreloader() {
-  useEffect(() => {
-    // Start preloading after a short delay to not block initial render
-    const timer = setTimeout(() => {
-      preloadOTPSecrets();
-    }, 2000); // Wait 2 seconds after dashboard loads
-
-    return () => clearTimeout(timer);
-  }, []);
-
   const preloadOTPSecrets = async () => {
     try {
       const supabase = createBrowserClient();
@@ -79,6 +70,15 @@ export default function OTPPreloader() {
       console.error("OTP preload failed:", error);
     }
   };
+
+  useEffect(() => {
+    // Start preloading after a short delay to not block initial render
+    const timer = setTimeout(() => {
+      preloadOTPSecrets();
+    }, 2000); // Wait 2 seconds after dashboard loads
+
+    return () => clearTimeout(timer);
+  }, []);
 
   return null; // This component doesn't render anything
 }

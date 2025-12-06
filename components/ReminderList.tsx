@@ -10,7 +10,7 @@ type Reminder = {
   channel?: string | null;
 };
 
-export default function ReminderList({ reminders }: { reminders: Reminder[] | null }) {
+export default function ReminderList({ reminders, onRefresh }: { reminders: Reminder[] | null; onRefresh?: () => void }) {
   if (!reminders || reminders.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -28,7 +28,7 @@ export default function ReminderList({ reminders }: { reminders: Reminder[] | nu
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {reminders.map((rem, idx) => (
-        <ReminderItem key={(rem.id ?? idx).toString()} reminder={rem} />
+        <ReminderItem key={(rem.id ?? idx).toString()} reminder={rem} onRefresh={onRefresh} />
       ))}
     </div>
   );

@@ -1,8 +1,11 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
+import { createBrowserClient } from "@/lib/supabase/client";
 import { updateUserPassword } from "@/app/actions";
 import { toast } from "react-hot-toast";
+import { AlertCircle, CheckCircle2, Lock } from "lucide-react";
+import { motion } from "framer-motion";
 
 interface UpdatePasswordFormProps {
   onBack: () => void;
@@ -10,60 +13,140 @@ interface UpdatePasswordFormProps {
 
 export default function UpdatePasswordForm({ onBack }: UpdatePasswordFormProps) {
   const [isPending, startTransition] = useTransition();
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const supabase = createBrowserClient();
+
+  const handleSubmit = async (formData: FormData) => {
+    setError(null);
+
+    if (newPassword.length < 6) {
+      setError("Yeni şifre en az 6 karakter olmalıdır.");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setError("Yeni şifreler eşleşmiyor.");
+      return;
+    }
+
+    // 1. Verify current password first
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: (await supabase.auth.getUser()).data.user?.email || "",
+      password: currentPassword
+    });
+
+    if (signInError) {
+      setError("Mevcut şifreniz hatalı.");
+      return;
+    }
+
+    // 2. Update password via Server Action
+    startTransition(async () => {
+      try {
+        await updateUserPassword(formData);
+        toast.success("Şifre başarıyla değiştirildi!");
+        onBack();
+      } catch (e: any) {
+        setError("Şifre güncellenemedi: " + e.message);
+      }
+    });
+  };
 
   return (
-    <div className="animate-fadeIn">
-      {/* Header with Back Button */}
-      <button
-        onClick={onBack}
-        className="flex items-center gap-2 text-zinc-400 dark:text-zinc-400 light:text-zinc-600 hover:text-white dark:text-white light:text-zinc-900 transition-colors mb-6"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-        </svg>
-        <span className="font-medium">Geri</span>
-      </button>
-
-      {/* Form */}
-      <div className="bg-zinc-900/50 dark:bg-zinc-900/50 light:bg-white backdrop-blur-md border border-white/10 dark:border-white/10 light:border-zinc-300 rounded-2xl p-8">
-        <h2 className="text-2xl font-bold text-white dark:text-white light:text-zinc-900 mb-6">Şifre Değiştir</h2>
-
-        <form
-          action={(formData) => {
-            startTransition(async () => {
-              await updateUserPassword(formData as FormData);
-              toast.success("Şifre başarıyla değiştirildi!");
-              onBack();
-            });
-          }}
-          className="space-y-5"
-        >
-          <div>
-            <label htmlFor="new_password" className="block text-zinc-400 dark:text-zinc-400 light:text-zinc-600 text-xs uppercase tracking-wider font-semibold ml-1 mb-2">
-              Yeni Şifre
-            </label>
-            <input
-              id="new_password"
-              name="new_password"
-              type="password"
-              autoComplete="new-password"
-              className="w-full bg-black/50 dark:bg-black/50 light:bg-zinc-50 border border-white/10 dark:border-white/10 light:border-zinc-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 text-white dark:text-white light:text-zinc-900 rounded-xl h-12 px-4 placeholder-zinc-500 dark:placeholder-zinc-500 light:placeholder-zinc-400 outline-none transition-all"
-              placeholder="••••••••"
-              minLength={6}
-              required
-            />
-            <p className="text-xs text-zinc-600 mt-2 ml-1">En az 6 karakter olmalıdır</p>
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      className="w-full max-w-md mx-auto bg-white dark:bg-zinc-900 rounded-3xl shadow-xl border border-zinc-200 dark:border-white/10 overflow-hidden relative"
+    >
+      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-teal-500" />
+      
+      <div className="p-8">
+        <div className="flex items-center justify-between mb-6">
+          <button 
+            onClick={onBack}
+            className="text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors"
+          >
+            ← Geri
+          </button>
+          <div className="w-10 h-10 bg-zinc-100 dark:bg-white/5 border border-zinc-200 dark:border-white/10 rounded-xl flex items-center justify-center shadow-inner">
+            <Lock className="w-5 h-5 text-zinc-900 dark:text-white" strokeWidth={1.5} />
           </div>
+          <div className="w-8" />
+        </div>
+
+        <h1 className="text-xl font-semibold tracking-tight text-center text-zinc-900 dark:text-white mb-2">
+          Parola Değiştir
+        </h1>
+        <p className="text-center text-sm text-zinc-500 dark:text-zinc-400 mb-8">
+          Hesap güvenliğiniz için güçlü bir parola belirleyin.
+        </p>
+
+        <form action={handleSubmit} className="space-y-5">
+          <div className="space-y-4">
+            {/* Current Password */}
+            <div className="relative group">
+              <input
+                type="password"
+                placeholder="Mevcut Parola"
+                className="w-full h-12 px-4 bg-zinc-50/50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-white/10 rounded-xl text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                required
+              />
+            </div>
+
+            {/* New Password */}
+            <div className="relative group">
+              <input
+                name="new_password"
+                type="password"
+                placeholder="Yeni Parola"
+                className="w-full h-12 px-4 bg-zinc-50/50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-white/10 rounded-xl text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+                minLength={6}
+              />
+            </div>
+
+            {/* Confirm New Password */}
+            <div className="relative group">
+              <input
+                type="password"
+                placeholder="Yeni Parola (Tekrar)"
+                className="w-full h-12 px-4 bg-zinc-50/50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-white/10 rounded-xl text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                minLength={6}
+              />
+            </div>
+          </div>
+
+          {error && (
+            <div className="bg-red-50/50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-xl p-4 flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+              <p className="text-sm font-medium text-red-600 dark:text-red-400">{error}</p>
+            </div>
+          )}
 
           <button
             type="submit"
-            disabled={isPending}
-            className="w-full bg-white dark:bg-white dark:text-black light:bg-zinc-900 light:text-white hover:bg-zinc-200 font-bold h-12 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isPending || !currentPassword || !newPassword || !confirmPassword}
+            className="w-full h-12 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-xl font-semibold text-sm tracking-wide shadow-lg shadow-emerald-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center active:scale-[0.98]"
           >
-            {isPending ? "Kaydediliyor..." : "Şifreyi Değiştir"}
+            {isPending ? (
+              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              "Parolayı Güncelle"
+            )}
           </button>
         </form>
       </div>
-    </div>
+    </motion.div>
   );
 }

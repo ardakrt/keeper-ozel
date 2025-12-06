@@ -5,7 +5,7 @@ import { Upload, Loader2, X, Sparkles } from "lucide-react";
 import { createBrowserClient } from "@/lib/supabase/client";
 import { BillingCycle } from "@/types/finance";
 import ServiceLogo from "@/components/finance/ServiceLogo";
-import { getServiceInfo } from "@/lib/serviceIcons";
+import { getBrandInfo } from "@/lib/serviceIcons";
 
 interface AddFinanceModalProps {
   onClose: () => void;
@@ -189,7 +189,7 @@ export default function AddFinanceModal({ onClose, onSuccess, editData }: AddFin
   };
 
   // Get brand info based on name input
-  const detectedBrand = getServiceInfo(formData.name);
+  const detectedBrand = getBrandInfo(formData.name);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-5 gap-8">

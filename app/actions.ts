@@ -279,7 +279,12 @@ export async function createNote(formData: FormData) {
   const title = (formData.get("title") ?? "").toString();
   const content = (formData.get("content") ?? "").toString();
 
-  await supabase.from("notes").insert({ title, content, user_id: user.id });
+  const { error } = await supabase.from("notes").insert({ title, content, user_id: user.id });
+
+  if (error) {
+    console.error("Not oluşturma hatası:", error);
+    throw new Error("Not oluşturulamadı: " + error.message);
+  }
 
   revalidatePath("/dashboard");
 }
@@ -1087,6 +1092,7 @@ export async function updateUserPin(formData: FormData) {
 
   const newPin = (formData.get("new_pin") ?? "").toString();
   const confirmPin = (formData.get("confirm_pin") ?? "").toString();
+  const updateAuthPassword = (formData.get("update_auth_password") ?? "true").toString() === "true";
 
   // Validation
   if (newPin.length !== 6 || !/^\d{6}$/.test(newPin)) {
@@ -1097,13 +1103,15 @@ export async function updateUserPin(formData: FormData) {
     throw new Error("PIN'ler eşleşmiyor");
   }
 
-  // 1. Update Supabase Auth Password (so they can login with new PIN)
-  const { error: authError } = await supabase.auth.updateUser({
-    password: newPin
-  });
+  // 1. Update Supabase Auth Password (OPTIONAL)
+  if (updateAuthPassword) {
+    const { error: authError } = await supabase.auth.updateUser({
+      password: newPin
+    });
 
-  if (authError) {
-    throw new Error("Auth şifresi güncellenemedi: " + authError.message);
+    if (authError) {
+      throw new Error("Auth şifresi güncellenemedi: " + authError.message);
+    }
   }
 
   // 2. Update Database Hash (user_preferences)
@@ -1202,6 +1210,7 @@ export async function getUserAuthInfo(email: string): Promise<UserAuthInfo> {
       return { exists: false, userId: null, avatarUrl: null, userName: null, theme: null };
     }
 
+    // Get user preferences for theme
     const { data: prefRow, error: prefErr } = await supabaseAdmin
       .from("user_preferences")
       .select("theme_mode_web")
@@ -1216,7 +1225,36 @@ export async function getUserAuthInfo(email: string): Promise<UserAuthInfo> {
       }
     }
 
-    return { exists: true, userId: user.id, avatarUrl: null, userName: null, theme };
+    // Get user profile for avatar and name
+    const { data: profileRow } = await supabaseAdmin
+      .from("profiles")
+      .select("avatar_url, display_name")
+      .eq("id", user.id)
+      .single();
+
+    // Try multiple avatar sources: profiles table -> user_metadata -> storage
+    let avatarUrl = (profileRow as any)?.avatar_url || null;
+    
+    if (!avatarUrl) {
+      // Try user_metadata
+      avatarUrl = user.user_metadata?.avatar_url || null;
+    }
+    
+    if (!avatarUrl) {
+      // Try storage bucket - check if avatar exists
+      const { data: storageData } = supabaseAdmin.storage
+        .from("avatars")
+        .getPublicUrl(`${user.id}/avatar.png`);
+      
+      if (storageData?.publicUrl) {
+        // Verify the file exists by checking with a HEAD request pattern
+        avatarUrl = storageData.publicUrl;
+      }
+    }
+
+    const userName = (profileRow as any)?.display_name || user.user_metadata?.name || user.user_metadata?.full_name || null;
+
+    return { exists: true, userId: user.id, avatarUrl, userName, theme };
   } catch (e) {
     console.error("getUserAuthInfo error:", e);
     return { exists: false, userId: null, avatarUrl: null, userName: null, theme: null };
@@ -1288,6 +1326,72 @@ export async function updateNotificationSettings(settings: {
 // ============================================
 // 2FA / OTP CODES ACTIONS
 // ============================================
+
+import QRCode from "qrcode";
+
+// Get OTP QR Code (Server-side QR generation for secure export)
+export async function getOTPQRCode(id: string): Promise<string> {
+  const supabase = await createSupabaseServerClient();
+  const bt = await getBasisTheory();
+
+  if (!bt) {
+    throw new Error("Basis Theory istemcisi oluşturulamadı");
+  }
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    throw new Error("Oturum bulunamadı");
+  }
+
+  // Fetch OTP record from database
+  const { data: otpRecord, error: fetchError } = await supabase
+    .from("otp_codes")
+    .select("*")
+    .eq("id", id)
+    .eq("user_id", user.id) // Ensure user owns this record
+    .single();
+
+  if (fetchError || !otpRecord) {
+    throw new Error("2FA kaydı bulunamadı");
+  }
+
+  // Reveal secret from Basis Theory
+  const revealKey = process.env.BASIS_THEORY_REVEAL_API_KEY;
+  const token = revealKey
+    ? await bt.tokens.retrieve(otpRecord.bt_token_id_secret, { apiKey: revealKey })
+    : await bt.tokens.retrieve(otpRecord.bt_token_id_secret);
+
+  const secret: string | undefined = (token as any)?.data?.value || (token as any)?.data;
+  if (!secret) {
+    throw new Error("Secret anahtarı alınamadı");
+  }
+
+  // Build otpauth URL
+  const issuer = otpRecord.issuer || otpRecord.service_name;
+  const account = otpRecord.account_name || "unknown";
+  const label = encodeURIComponent(`${issuer}:${account}`);
+  const encodedIssuer = encodeURIComponent(issuer);
+  const encodedSecret = secret.replace(/\s/g, "").toUpperCase();
+
+  const otpauthUrl = `otpauth://totp/${label}?secret=${encodedSecret}&issuer=${encodedIssuer}&algorithm=${otpRecord.algorithm || "SHA1"}&digits=${otpRecord.digits || 6}&period=${otpRecord.period || 30}`;
+
+  // Generate QR code as base64 PNG
+  const qrDataUrl = await QRCode.toDataURL(otpauthUrl, {
+    width: 300,
+    margin: 2,
+    color: {
+      dark: "#000000",
+      light: "#ffffff",
+    },
+  });
+
+  // Return ONLY the base64 image, never the secret
+  return qrDataUrl;
+}
 
 // Create OTP Code
 export async function createOTPCode(formData: FormData) {

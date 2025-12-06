@@ -65,7 +65,7 @@ async function fetchFromAltinkaynak(): Promise<MarketItem[]> {
         'SOAPAction': 'http://data.altinkaynak.com/GetGold',
       },
       body: SOAP_ENVELOPE,
-      cache: 'no-store',
+      next: { revalidate: 60 },
     });
 
     if (!response.ok) {
@@ -140,10 +140,19 @@ async function fetchFromTruncgil(): Promise<{ currencies: MarketItem[]; cryptos:
   const cryptos: CryptoItem[] = [];
 
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 saniye timeout
+
     const response = await fetch('https://finans.truncgil.com/v4/today.json', {
-      cache: 'no-store',
-      headers: { 'Accept': 'application/json' }
+      next: { revalidate: 60 },
+      headers: { 
+        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (compatible; KeeperWeb/1.0; +https://keeper-web.vercel.app)'
+      },
+      signal: controller.signal
     });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       throw new Error(`API request failed: ${response.status}`);
@@ -206,8 +215,13 @@ async function fetchFromTruncgil(): Promise<{ currencies: MarketItem[]; cryptos:
       }
     });
 
-  } catch (error) {
-    console.error('Truncgil API Error:', error);
+  } catch (error: any) {
+    // Soket hatalarını ve timeout'ları loglarken daha temiz ol
+    if (error.cause?.code === 'UND_ERR_SOCKET' || error.name === 'AbortError') {
+      console.warn('Truncgil API connection issue (using fallback):', error.message);
+    } else {
+      console.error('Truncgil API Error:', error);
+    }
   }
 
   return { currencies, cryptos };
@@ -225,7 +239,7 @@ export async function GET() {
     const cryptos = truncgilData.cryptos;
     
     // Altınkaynak'tan gelen altın verilerini kullan (daha güncel)
-    let golds = altinkaynakGolds;
+    const golds = altinkaynakGolds;
 
     // Veri kontrolü
     if (currencies.length === 0 && golds.length === 0) {

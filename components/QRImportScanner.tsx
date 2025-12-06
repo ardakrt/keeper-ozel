@@ -32,13 +32,6 @@ export default function QRImportScanner({ onSuccess }: { onSuccess?: () => void 
   const streamRef = useRef<MediaStream | null>(null);
   const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Stop camera when component unmounts or method changes
-  useEffect(() => {
-    return () => {
-      stopCamera();
-    };
-  }, []);
-
   const startCamera = async () => {
     try {
       setError(null);
@@ -90,6 +83,13 @@ export default function QRImportScanner({ onSuccess }: { onSuccess?: () => void 
 
     setIsScanning(false);
   };
+
+  // Stop camera when component unmounts
+  useEffect(() => {
+    return () => {
+      stopCamera();
+    };
+  }, []);
 
   const scanQRCode = () => {
     if (!videoRef.current || !canvasRef.current) return;
@@ -522,7 +522,7 @@ export default function QRImportScanner({ onSuccess }: { onSuccess?: () => void 
               </p>
               <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
                 <p className="text-xs text-amber-400 text-center">
-                  ⚠️ Parlak ekranda QR okutamıyorsanız: Ekran görüntüsü alıp "Görsel Yükle" ile deneyin
+                  ⚠️ Parlak ekranda QR okutamıyorsanız: Ekran görüntüsü alıp &quot;Görsel Yükle&quot; ile deneyin
                 </p>
               </div>
             </div>
@@ -587,7 +587,7 @@ export default function QRImportScanner({ onSuccess }: { onSuccess?: () => void 
               ✨ Toplu İçe Aktarma Özelliği
             </p>
             <p className="text-xs text-zinc-400 dark:text-zinc-400 light:text-zinc-600">
-              <strong>Google Authenticator:</strong> Üç nokta (⋮) → "Transfer accounts" → "Export accounts" → Tüm hesapları seç → QR oluştur
+              <strong>Google Authenticator:</strong> Üç nokta (⋮) → &quot;Transfer accounts&quot; → &quot;Export accounts&quot; → Tüm hesapları seç → QR oluştur
             </p>
           </div>
 

@@ -437,7 +437,7 @@ export default function SettingsModal({ isOpen, onClose, user }: SettingsModalPr
                   }}
                   className="ml-4 text-sm text-emerald-500 hover:text-emerald-400 transition-colors"
                 >
-                  PIN'i Değiştir
+                  PIN&apos;i Değiştir
                 </button>
               )}
 
@@ -543,7 +543,7 @@ export default function SettingsModal({ isOpen, onClose, user }: SettingsModalPr
                     {(pinMode === 'set' || pinMode === 'change') && (
                       <div>
                         <label className="text-xs text-zinc-500 dark:text-zinc-400 font-medium mb-2 block">
-                          PIN'i Tekrarla
+                          PIN&apos;i Tekrarla
                         </label>
                         <input
                           type="tel"

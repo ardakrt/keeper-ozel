@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
   try {
     // Parse request body
     const body = await request.json();
-    const { requestId, email } = body;
+    const { requestId, email, origin } = body;
 
     // Validate input
     if (!requestId || !email) {
@@ -55,12 +55,16 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ Login request verified as approved');
 
+    // Determine redirect URL
+    const redirectBase = origin || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+    const redirectTo = `${redirectBase}/auth/callback`;
+
     // Step 3: Generate magic link using Admin API
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'magiclink',
       email: email,
       options: {
-        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/callback`,
+        redirectTo: redirectTo,
       },
     });
 

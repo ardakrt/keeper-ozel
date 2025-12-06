@@ -5,7 +5,7 @@ import { Command } from 'cmdk';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { useModalStore } from '@/lib/store/useModalStore';
 import { useRouter } from 'next/navigation';
-import { FileText, Wallet, Bell, Settings, LogOut, Plus, CreditCard, Landmark, Timer } from 'lucide-react';
+import { FileText, Wallet, Bell, Settings, LogOut, Plus, CreditCard, Landmark, Timer, ListTodo } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { createBrowserClient } from '@/lib/supabase/client';
 
@@ -142,6 +142,46 @@ export default function CommandPalette() {
               className="menu-item"
             >
               <Landmark size={16} /> Yeni IBAN Ekle
+            </Command.Item>
+            <Command.Item
+              onSelect={() =>
+                runCommand(() => {
+                  router.push('/dashboard/subscriptions?action=new-subscription');
+                })
+              }
+              className="menu-item"
+            >
+              <CreditCard size={16} /> Yeni Abonelik Ekle
+            </Command.Item>
+            <Command.Item
+              onSelect={() =>
+                runCommand(() => {
+                  router.push('/dashboard/subscriptions?action=new-loan');
+                })
+              }
+              className="menu-item"
+            >
+              <Landmark size={16} /> Yeni Kredi Ekle
+            </Command.Item>
+            <Command.Item
+              onSelect={() =>
+                runCommand(() => {
+                  router.push('/dashboard/todos?action=new-task');
+                })
+              }
+              className="menu-item"
+            >
+              <ListTodo size={16} /> Yeni Görev Ekle
+            </Command.Item>
+            <Command.Item
+              onSelect={() =>
+                runCommand(() => {
+                  router.push('/dashboard/timer?action=new-timer');
+                })
+              }
+              className="menu-item"
+            >
+              <Timer size={16} /> Yeni Zamanlayıcı Ekle
             </Command.Item>
             <Command.Item
               onSelect={() => runCommand(() => openSettingsModal())}

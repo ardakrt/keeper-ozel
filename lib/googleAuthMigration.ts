@@ -28,7 +28,6 @@ interface OtpParameters {
 function base32ToBytes(base32: string): Uint8Array {
   const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
   let bits = "";
-  let value = 0;
 
   for (let i = 0; i < base32.length; i++) {
     const char = base32[i].toUpperCase();

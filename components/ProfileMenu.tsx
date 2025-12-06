@@ -6,7 +6,7 @@ import AvatarUploadForm from "@/components/AvatarUploadForm";
 
 interface ProfileMenuProps {
   user: any;
-  onViewChange: (view: "menu" | "name" | "email" | "password") => void;
+  onViewChange: (view: "menu" | "name" | "email" | "password" | "pin") => void;
   onRefresh?: () => void;
 }
 
@@ -15,6 +15,7 @@ export default function ProfileMenu({ user, onViewChange, onRefresh }: ProfileMe
   const supabase = createBrowserClient();
 
   const handleLogout = async () => {
+    sessionStorage.removeItem("pinVerified");
     await supabase.auth.signOut();
     router.push("/login");
   };
@@ -70,7 +71,7 @@ export default function ProfileMenu({ user, onViewChange, onRefresh }: ProfileMe
           </svg>
         </button>
 
-        {/* Şifre Değiştir */}
+        {/* Parola Değiştir */}
         <button
           onClick={() => onViewChange("password")}
           className="w-full dark:bg-zinc-900/50 light:bg-white border border-white/5 light:border-zinc-200 rounded-2xl p-5 flex items-center justify-between transition-all cursor-pointer group light:shadow-sm light:hover:bg-zinc-50 dark:hover:border-white/20 light:hover:border-zinc-300"
@@ -81,7 +82,25 @@ export default function ProfileMenu({ user, onViewChange, onRefresh }: ProfileMe
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
             </div>
-            <span className="text-white dark:text-white light:text-zinc-900 font-medium">Şifre Değiştir</span>
+            <span className="text-white dark:text-white light:text-zinc-900 font-medium">Parola Değiştir</span>
+          </div>
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-zinc-500 dark:text-white light:text-zinc-500 light:group-hover:text-zinc-900 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+
+        {/* PIN Değiştir */}
+        <button
+          onClick={() => onViewChange("pin")}
+          className="w-full dark:bg-zinc-900/50 light:bg-white border border-white/5 light:border-zinc-200 rounded-2xl p-5 flex items-center justify-between transition-all cursor-pointer group light:shadow-sm light:hover:bg-zinc-50 dark:hover:border-white/20 light:hover:border-zinc-300"
+        >
+          <div className="flex items-center">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center mr-4 light:bg-zinc-100 dark:bg-emerald-600/20">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 light:text-zinc-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+              </svg>
+            </div>
+            <span className="text-white dark:text-white light:text-zinc-900 font-medium">PIN Değiştir</span>
           </div>
           <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-zinc-500 dark:text-white light:text-zinc-500 light:group-hover:text-zinc-900 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

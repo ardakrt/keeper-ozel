@@ -1,13 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Copy, Check, Trash2 } from "lucide-react";
+import { Copy, Check, Trash2, QrCode, X } from "lucide-react";
 import { generateTOTP, getRemainingSeconds } from "@/lib/totp";
 import { copyToClipboard } from "@/lib/clipboard";
 import { getServiceInfo } from "@/lib/serviceIcons";
 import ServiceLogo from "@/components/finance/ServiceLogo";
+import { getOTPQRCode } from "@/app/actions";
+import { toast } from "react-hot-toast";
 
 interface TOTPCodeDisplayProps {
+  id: string; // OTP record ID for QR generation
   secret: string;
   serviceName: string;
   accountName?: string | null;
@@ -22,6 +25,7 @@ interface TOTPCodeDisplayProps {
 }
 
 export default function TOTPCodeDisplay({
+  id,
   secret,
   serviceName,
   accountName,
@@ -38,6 +42,11 @@ export default function TOTPCodeDisplay({
   const [remaining, setRemaining] = useState<number>(30);
   const [copied, setCopied] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+  
+  // QR Modal state
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [qrImage, setQrImage] = useState<string | null>(null);
+  const [qrLoading, setQrLoading] = useState(false);
 
   // Generate code and update countdown
   useEffect(() => {
@@ -84,6 +93,29 @@ export default function TOTPCodeDisplay({
     copyToClipboard(code, "2FA kodu kopyalandı!");
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  // QR Code handler
+  const handleShowQR = async () => {
+    setShowQRModal(true);
+    setQrLoading(true);
+    
+    try {
+      const qrDataUrl = await getOTPQRCode(id);
+      setQrImage(qrDataUrl);
+    } catch (error) {
+      console.error("QR generation failed:", error);
+      toast.error("QR kod oluşturulamadı");
+      setShowQRModal(false);
+    } finally {
+      setQrLoading(false);
+    }
+  };
+
+  const handleCloseQR = () => {
+    setShowQRModal(false);
+    // Security: Clear QR image from memory when modal closes
+    setQrImage(null);
   };
 
   const displayName = issuer || serviceName;
@@ -186,6 +218,15 @@ export default function TOTPCodeDisplay({
 
             {/* Action Buttons */}
             <div className="flex items-center gap-2">
+              {/* QR Code Button */}
+              <button
+                onClick={handleShowQR}
+                className="p-2 rounded-lg bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 border border-zinc-200 dark:border-white/10 transition-all"
+                title="QR Kod Göster"
+              >
+                <QrCode className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
+              </button>
+
               {/* Copy Button */}
               <button
                 onClick={handleCopy}
@@ -214,6 +255,60 @@ export default function TOTPCodeDisplay({
           </div>
         </div>
       </div>
+
+      {/* QR Code Modal */}
+      {showQRModal && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={handleCloseQR}
+        >
+          <div 
+            className="relative bg-white dark:bg-zinc-900 rounded-2xl p-6 shadow-2xl max-w-sm w-full mx-4 border border-zinc-200 dark:border-zinc-800"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close button */}
+            <button
+              onClick={handleCloseQR}
+              className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-all"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Header */}
+            <div className="text-center mb-4">
+              <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">
+                {displayName}
+              </h3>
+              {displayAccount && (
+                <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                  {displayAccount}
+                </p>
+              )}
+            </div>
+
+            {/* QR Code */}
+            <div className="flex items-center justify-center p-4 bg-white rounded-xl">
+              {qrLoading ? (
+                <div className="w-[268px] h-[268px] flex items-center justify-center">
+                  <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : qrImage ? (
+                <img 
+                  src={qrImage} 
+                  alt="OTP QR Code" 
+                  className="w-[268px] h-[268px]"
+                  draggable={false}
+                />
+              ) : null}
+            </div>
+
+            {/* Warning */}
+            <p className="text-xs text-center text-zinc-500 dark:text-zinc-400 mt-4">
+              ⚠️ Bu QR kodu sadece güvendiğiniz cihazlarda tarayın
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

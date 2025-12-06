@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useTheme } from "@/contexts/ThemeContext";
-import { X, Palette, Globe, Bell, Shield, Download, Trash2 } from "lucide-react";
+import { X, Palette, Globe, Bell, Shield, Download, Trash2, Lock, KeyRound } from "lucide-react";
 import { createBrowserClient } from "@/lib/supabase/client";
 import AccentColorPicker from "@/components/AccentColorPicker";
 import { motion } from "framer-motion";
 import { toast } from "react-hot-toast";
+import { sendPinResetEmail } from "@/app/actions/auth-pin";
 
 
 interface SettingsModalProps {
@@ -28,6 +29,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
     profileVisible: true,
     shareData: false,
   });
+  const supabase = createBrowserClient();
 
   const categories = [
     { id: "appearance" as SettingsCategory, label: "Görünüm", icon: Palette },
@@ -38,7 +40,6 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
 
   useEffect(() => {
     // Load user preferences
-    const supabase = createBrowserClient();
     const loadPreferences = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
@@ -57,6 +58,36 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
     // TODO: Implement account deletion
     if (confirm("Hesabınızı silmek istediğinize emin misiniz? Bu işlem geri alınamaz.")) {
       toast.success("Hesap silme işlemi başlatıldı.");
+    }
+  };
+
+  const handleChangePassword = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user?.email) return;
+
+    const toastId = toast.loading("Şifre sıfırlama bağlantısı gönderiliyor...");
+    const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/update-password`,
+    });
+
+    if (error) {
+      toast.error("Hata: " + error.message, { id: toastId });
+    } else {
+      toast.success("Bağlantı e-posta adresinize gönderildi.", { id: toastId });
+    }
+  };
+
+  const handleChangePin = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user?.email) return;
+
+    const toastId = toast.loading("PIN sıfırlama bağlantısı gönderiliyor...");
+    const res = await sendPinResetEmail(user.email);
+
+    if (res.success) {
+      toast.success("Bağlantı e-posta adresinize gönderildi.", { id: toastId });
+    } else {
+      toast.error("Hata: " + res.message, { id: toastId });
     }
   };
 
@@ -267,6 +298,50 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
               {/* Security Category */}
               {activeCategory === "security" && (
                 <div className="space-y-6">
+                  {/* Login & Security Section */}
+                  <div className="bg-black/30 backdrop-blur-sm border border-white/5 rounded-xl p-6">
+                    <h4 className="text-lg font-medium text-white mb-4">Giriş & Güvenlik</h4>
+                    <p className="text-sm text-zinc-400 mb-6">Hesap erişim bilgilerinizi yönetin</p>
+
+                    <div className="space-y-3">
+                      <button
+                        onClick={handleChangePassword}
+                        className="w-full bg-zinc-900 border border-white/10 rounded-xl p-4 flex items-center justify-between hover:border-blue-500 transition-colors group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-lg bg-blue-500/10">
+                            <Lock className="w-5 h-5 text-blue-400" />
+                          </div>
+                          <div className="text-left">
+                            <p className="text-sm font-medium text-white">Parola Değiştir</p>
+                            <p className="text-xs text-zinc-400 mt-1">Giriş şifrenizi sıfırlamak için e-posta alın</p>
+                          </div>
+                        </div>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-zinc-500 group-hover:text-blue-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
+
+                      <button
+                        onClick={handleChangePin}
+                        className="w-full bg-zinc-900 border border-white/10 rounded-xl p-4 flex items-center justify-between hover:border-emerald-500 transition-colors group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-lg bg-emerald-500/10">
+                            <KeyRound className="w-5 h-5 text-emerald-400" />
+                          </div>
+                          <div className="text-left">
+                            <p className="text-sm font-medium text-white">PIN Değiştir</p>
+                            <p className="text-xs text-zinc-400 mt-1">Uygulama kilit PIN'inizi sıfırlayın</p>
+                          </div>
+                        </div>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-zinc-500 group-hover:text-emerald-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+
                   {/* Privacy Settings Section */}
                   <div className="bg-black/30 backdrop-blur-sm border border-white/5 rounded-xl p-6">
                     <h4 className="text-lg font-medium text-white mb-4">Gizlilik Ayarları</h4>

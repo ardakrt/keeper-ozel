@@ -217,6 +217,7 @@ export function usePushLogin(): UsePushLoginReturn {
         body: JSON.stringify({
           requestId,
           email,
+          origin: window.location.origin,
         }),
       });
 

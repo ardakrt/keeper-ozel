@@ -26,8 +26,11 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  // 2FA Check: If session exists but device not verified
-  const isDeviceVerified = req.cookies.has("device_verified");
+  // 2FA Check: Stateless Cookie Existence Check (Performance Optimized)
+  // We rely on Server Actions and RLS for actual data security.
+  // Middleware just acts as a gatekeeper for the UI.
+  const deviceToken = req.cookies.get("device_verified")?.value;
+  const isDeviceVerified = !!deviceToken;
 
   if (session) {
     // If user is on Auth Page (Login/Register)

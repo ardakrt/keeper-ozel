@@ -1,14 +1,14 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { createBrowserClient } from "@/lib/supabase/client";
 import {
   Loader2, HardDrive, Cloud, Image as ImageIcon, FileText, Folder, File,
-  Search, Plus, Video, Trash2, Upload, MoreVertical, ArrowDown, User,
-  ChevronLeft, FolderPlus, RefreshCw, ExternalLink, Check, X, Maximize2, LogOut
+  Search, Plus, Video, Trash2, Upload, ChevronLeft, FolderPlus, RefreshCw, ExternalLink, X, Maximize2, LogOut
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-hot-toast";
+import { getDriveFilesCache, getDriveStorageCache, isCacheFresh } from "@/components/DataPreloader";
 
 function formatBytes(bytes: any, decimals = 2) {
   if (!+bytes) return '-';
@@ -50,8 +50,79 @@ export default function DrivePage() {
   const supabase = createBrowserClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const fetchFiles = useCallback(async (folderId: string = currentFolderId) => {
+    setIsFilesLoading(true);
+    try {
+      const res = await fetch(`/api/drive/files?folderId=${folderId}`);
+      const data = await res.json();
+      if (data.files) {
+        setFiles(data.files);
+        setStorage(data.storage);
+
+        // Root klasör ise cache'i güncelle
+        if (folderId === 'root') {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            localStorage.setItem(`keeper_cache_drive_files_${user.id}`, JSON.stringify({
+              data: data.files,
+              timestamp: Date.now(),
+              userId: user.id
+            }));
+            if (data.storage) {
+              localStorage.setItem(`keeper_cache_drive_storage_${user.id}`, JSON.stringify({
+                data: data.storage,
+                timestamp: Date.now(),
+                userId: user.id
+              }));
+            }
+          }
+        }
+      }
+    } catch (error) {
+      toast.error("Dosyalar alınamadı");
+    } finally {
+      setIsFilesLoading(false);
+    }
+  }, [currentFolderId, supabase]);
+
   // İLK useEffect - Sadece ilk yüklemede çalışacak
   useEffect(() => {
+    const checkConnection = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) { setIsLoading(false); return; }
+  
+        const { data: prefs } = await supabase.from('user_preferences').select('google_refresh_token').eq('user_id', user.id).single();
+        if (prefs && prefs.google_refresh_token) {
+          setIsConnected(true);
+  
+          // ÖNCELİKLE CACHE'TEN YÜK (ANINDA GÖSTER)
+          const cachedFiles = getDriveFilesCache(user.id);
+          const cachedStorage = getDriveStorageCache(user.id);
+  
+          if (cachedFiles && cachedFiles.length > 0) {
+            setFiles(cachedFiles);
+            if (cachedStorage) setStorage(cachedStorage);
+            setIsLoading(false);
+  
+            // Cache tazeyse, network isteği yapma
+            if (isCacheFresh('drive_files', user.id)) {
+              console.log("☁️ Using fresh cache for drive");
+              return;
+            }
+            console.log("☁️ Cache stale, refreshing drive in background...");
+          }
+  
+          // Cache yoksa veya stalese, normal yükle
+          fetchFiles('root');
+        }
+      } catch (error) {
+        console.error('Bağlantı hatası:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
     checkConnection();
     const params = new URLSearchParams(window.location.search);
     if (params.get('success') === 'connected') {
@@ -59,7 +130,7 @@ export default function DrivePage() {
       window.history.replaceState({}, '', '/dashboard/drive');
       setTimeout(() => setShowSuccess(false), 3000);
     }
-  }, []);
+  }, [fetchFiles, supabase]); // Added fetchFiles and supabase to dependencies
 
   // İKİNCİ useEffect - Event listener'lar için
   useEffect(() => {
@@ -95,7 +166,7 @@ export default function DrivePage() {
       window.removeEventListener("keydown", handleEsc);
       window.removeEventListener('popstate', handlePopState);
     };
-  }, [previewFile, isCreatingFolder, currentFolderId, confirmDialog]);
+  }, [previewFile, isCreatingFolder, currentFolderId, confirmDialog]); // Removed navigateUp dependency as it's defined below
 
   // --- SAĞ TIK MANTIĞI ---
   const handleContextMenu = (e: React.MouseEvent, file?: any) => {
@@ -119,80 +190,6 @@ export default function DrivePage() {
       webLink: file?.webViewLink,
       fileObj: file
     });
-  };
-
-  const checkConnection = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setIsLoading(false); return; }
-
-      const { data: prefs } = await supabase.from('user_preferences').select('google_refresh_token').eq('user_id', user.id).single();
-      if (prefs && prefs.google_refresh_token) {
-        setIsConnected(true);
-
-        // ÖNCELİKLE CACHE'TEN YÜK (ANINDA GÖSTER)
-        const { getDriveFilesCache, getDriveStorageCache, isCacheFresh } = await import('@/components/DataPreloader');
-        const cachedFiles = getDriveFilesCache(user.id);
-        const cachedStorage = getDriveStorageCache(user.id);
-
-        if (cachedFiles && cachedFiles.length > 0) {
-          setFiles(cachedFiles);
-          if (cachedStorage) setStorage(cachedStorage);
-          setIsLoading(false);
-
-          // Cache tazeyse, network isteği yapma
-          if (isCacheFresh('drive_files', user.id)) {
-            console.log("☁️ Using fresh cache for drive");
-            return;
-          }
-          console.log("☁️ Cache stale, refreshing drive in background...");
-        }
-
-        // Cache yoksa veya stalese, normal yükle
-        fetchFiles('root');
-      }
-    } catch (error) {
-      console.error('Bağlantı hatası:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const fetchFiles = async (folderId: string = currentFolderId) => {
-    setIsFilesLoading(true);
-    try {
-      const res = await fetch(`/api/drive/files?folderId=${folderId}`);
-      const data = await res.json();
-      if (data.files) {
-        setFiles(data.files);
-        setStorage(data.storage);
-
-        // Root klasör ise cache'i güncelle
-        if (folderId === 'root') {
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user) {
-            const { default: DataPreloader } = await import('@/components/DataPreloader');
-            // Cache'e yaz (sonraki ziyaretlerde hızlı açılsın)
-            localStorage.setItem(`keeper_cache_drive_files_${user.id}`, JSON.stringify({
-              data: data.files,
-              timestamp: Date.now(),
-              userId: user.id
-            }));
-            if (data.storage) {
-              localStorage.setItem(`keeper_cache_drive_storage_${user.id}`, JSON.stringify({
-                data: data.storage,
-                timestamp: Date.now(),
-                userId: user.id
-              }));
-            }
-          }
-        }
-      }
-    } catch (error) {
-      toast.error("Dosyalar alınamadı");
-    } finally {
-      setIsFilesLoading(false);
-    }
   };
 
   // --- ONAY MODALI FONKSİYONU ---
@@ -344,7 +341,7 @@ export default function DrivePage() {
   };
 
   const enterFolder = (id: string, name: string) => {
-    let newHistory = [...folderHistory];
+    const newHistory = [...folderHistory];
     if (newHistory.length === 0) newHistory.push({ id: 'root', name: 'Ana Dizin' });
     newHistory.push({ id: id, name: name });
     setFolderHistory(newHistory);
@@ -390,7 +387,7 @@ export default function DrivePage() {
             <div className="w-20 h-20 bg-zinc-100 dark:bg-white/5 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-zinc-200 dark:border-white/10">
               <HardDrive className="w-10 h-10 text-zinc-900 dark:text-white" />
             </div>
-            <h2 className="text-2xl font-bold text-zinc-900 dark:text-white mb-2">Drive'ım</h2>
+            <h2 className="text-2xl font-bold text-zinc-900 dark:text-white mb-2">Drive&apos;ım</h2>
             <p className="text-zinc-500 dark:text-zinc-400 mb-8">Dosyalarına erişmek için bağlan.</p>
             <button onClick={handleConnect} className="bg-zinc-900 dark:bg-white text-white dark:text-black font-bold py-3 px-8 rounded-xl hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors mt-4">Google ile Bağlan</button>
           </div>

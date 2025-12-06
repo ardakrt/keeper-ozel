@@ -3,6 +3,8 @@
 import { useState, useTransition } from "react";
 import { revealPassword, deleteAccount, updateAccount } from "@/app/actions";
 import { toast } from "react-hot-toast";
+import ServiceLogo from "@/components/finance/ServiceLogo";
+import { getBrandInfo } from "@/lib/serviceIcons";
 
 type Account = {
   id?: string | number;
@@ -68,6 +70,8 @@ export default function AccountItem({ account, onRefresh }: { account: Account; 
           formData.append("bt_token_id_password", account.bt_token_id_password);
         }
         await deleteAccount(formData);
+        const { invalidateCache } = await import('@/components/DataPreloader');
+        invalidateCache('accounts');
         toast.success("Hesap silindi!");
         if (onRefresh) {
           onRefresh();
@@ -191,11 +195,11 @@ export default function AccountItem({ account, onRefresh }: { account: Account; 
 
             {/* Service Icon and Name */}
             <div className="flex items-start gap-3 mb-5 relative z-10">
-              <div className="p-2.5 bg-blue-600/10 dark:bg-blue-600/10 light:bg-zinc-100 rounded-xl flex-shrink-0 border border-transparent light:border-zinc-200">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-400 dark:text-blue-400 light:text-zinc-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
-              </div>
+              <ServiceLogo 
+                brand={getBrandInfo(account.service_name ?? account.service ?? "")} 
+                fallbackText={account.service_name ?? account.service ?? "?"} 
+                size="md" 
+              />
               <div className="flex-1 min-w-0 pt-0.5">
                 <h3 className="text-lg font-bold text-white dark:text-white light:text-zinc-900 truncate tracking-tight">
                   {account.service_name ?? account.service ?? "(Hizmet)"}

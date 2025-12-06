@@ -50,7 +50,7 @@ export function parseOTPAuthURI(uri: string): {
     console.log("Parsing URI:", uri);
 
     // Handle URL encoding issues
-    let cleanUri = uri.trim();
+    const cleanUri = uri.trim();
 
     // Try to parse as URL
     const url = new URL(cleanUri);
@@ -68,7 +68,7 @@ export function parseOTPAuthURI(uri: string): {
     const type = url.host; // totp or hotp
 
     // Parse the path (format: /issuer:account or /account)
-    let pathParts = url.pathname.slice(1).split(":");
+    const pathParts = url.pathname.slice(1).split(":");
 
     // Handle empty path
     if (!pathParts[0]) {

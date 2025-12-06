@@ -11,6 +11,7 @@ export default function LogoutButton() {
 
   const handleLogout = async () => {
     setLoading(true);
+    sessionStorage.removeItem("pinVerified");
     const { error } = await supabase.auth.signOut();
     setLoading(false);
     if (!error) {

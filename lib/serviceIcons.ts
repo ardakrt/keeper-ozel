@@ -9,6 +9,7 @@ export interface BrandInfo {
   name: string;
   type: BrandType;
   domain?: string; // Brandfetch domain (e.g., spotify.com)
+  iconUrl?: string; // Custom icon URL (overrides domain-based fetch)
   content?: string; // Fallback text content or SVG path
   viewBox?: string; // SVG viewBox for svg-path type
   colors: {
@@ -38,14 +39,23 @@ const BANKS: Record<string, BrandInfo> = {
     name: "Akbank",
     type: "brandfetch",
     domain: "akbank.com",
+    iconUrl: "https://cdn.brandfetch.io/idlJLv8cwt/w/400/h/400/theme/dark/icon.png?c=1bxid64Mup7aczewSAYMX&t=1668810772095",
     colors: { primary: "#DA291C", bg: "#ffffff" }
   },
   isbank: {
     id: "isbank",
     name: "İş Bankası",
-    type: "svg-path",
-    viewBox: "0 0 24 24",
-    content: "M4 4h2v16H4V4zm4 0h2v16H8V4zm10 0h2v16h-2V4zm-6 0h4v2h-4V4zm0 7h4v2h-4v-2zm0 7h4v2h-4v-2z",
+    type: "brandfetch",
+    domain: "isbank.com.tr",
+    iconUrl: "https://cdn.brandfetch.io/idMep5vLto/theme/dark/symbol.svg?c=1bxid64Mup7aczewSAYMX&t=1668075428330",
+    colors: { primary: "#1F49B6", bg: "#ffffff" }
+  },
+  iscep: {
+    id: "isbank",
+    name: "İşCep",
+    type: "brandfetch",
+    domain: "isbank.com.tr",
+    iconUrl: "https://cdn.brandfetch.io/idMep5vLto/theme/dark/symbol.svg?c=1bxid64Mup7aczewSAYMX&t=1668075428330",
     colors: { primary: "#1F49B6", bg: "#ffffff" }
   },
   yapikredi: {
@@ -244,11 +254,16 @@ const ALL_BRANDS = { ...BANKS, ...SERVICES };
  */
 function normalize(str: string): string {
   return str
-    .toLowerCase()
+    .toLocaleLowerCase('tr-TR')
     .trim()
+    .replace(/ğ/g, 'g')
+    .replace(/ü/g, 'u')
+    .replace(/ş/g, 's')
+    .replace(/ı/g, 'i')
+    .replace(/ö/g, 'o')
+    .replace(/ç/g, 'c')
     .replace(/\s+/g, '')
     .replace('bankası', '')
-    .replace('bank', '')
     .replace('premium', '')
     .replace('music', '')
     .replace('plus', '')
@@ -263,10 +278,14 @@ export function getBrandInfo(query: string): BrandInfo | null {
   if (!query) return null;
 
   const key = normalize(query);
+  if (!key) return null;
 
   // Direct key match check
   for (const [brandKey, brand] of Object.entries(ALL_BRANDS)) {
-    if (key.includes(brandKey) || brandKey.includes(key)) {
+    // If key is 1 char, strict prefix match; otherwise substring match
+    const isPartialMatch = key.length >= 2 ? brandKey.includes(key) : brandKey.startsWith(key);
+    
+    if (key.includes(brandKey) || isPartialMatch) {
       return brand;
     }
   }
@@ -278,17 +297,25 @@ export function getBrandInfo(query: string): BrandInfo | null {
  * Get specific type info if needed
  */
 export function getBankInfo(query: string): BrandInfo | null {
+  if (!query) return null;
   const key = normalize(query);
+  if (!key) return null;
+
   for (const [brandKey, brand] of Object.entries(BANKS)) {
-    if (key.includes(brandKey)) return brand;
+    const isPartialMatch = key.length >= 2 ? brandKey.includes(key) : brandKey.startsWith(key);
+    if (key.includes(brandKey) || isPartialMatch) return brand;
   }
   return null;
 }
 
 export function getServiceInfo(query: string): BrandInfo | null {
+  if (!query) return null;
   const key = normalize(query);
+  if (!key) return null;
+
   for (const [brandKey, brand] of Object.entries(SERVICES)) {
-    if (key.includes(brandKey)) return brand;
+    const isPartialMatch = key.length >= 2 ? brandKey.includes(key) : brandKey.startsWith(key);
+    if (key.includes(brandKey) || isPartialMatch) return brand;
   }
   return null;
 }

@@ -15,6 +15,7 @@ type Reminder = {
   due_date?: string | null; // Backward compatibility
   category?: string | null;
   channel?: string | null;
+  is_completed?: boolean;
 };
 
 interface RemindersPageManagerProps {
@@ -31,17 +32,34 @@ export default function RemindersPageManager({ reminders, onRefresh }: Reminders
 
   // Hatırlatmaları aktif ve geçmiş olarak ayır
   const { activeReminders, pastReminders } = useMemo(() => {
-    const now = new Date();
     const active: Reminder[] = [];
     const past: Reminder[] = [];
+    const now = new Date();
 
-    reminders.forEach((reminder) => {
-      const dueDate = reminder.due_at || reminder.due_date;
-      if (dueDate && new Date(dueDate) < now) {
+    (reminders || []).forEach((reminder) => {
+      const dueDate = reminder.due_at || reminder.due_date ? new Date(reminder.due_at || reminder.due_date!) : null;
+      const isExpired = dueDate ? dueDate < now : false;
+
+      // Aktif: is_completed explicitly true değilse VE süresi geçmemişse aktiftir
+      if (reminder.is_completed === true || isExpired) {
         past.push(reminder);
       } else {
         active.push(reminder);
       }
+    });
+
+    // Tarihe göre sırala (Yaklaşanlar önce)
+    active.sort((a, b) => {
+        const dateA = new Date(a.due_at || a.due_date || 0).getTime();
+        const dateB = new Date(b.due_at || b.due_date || 0).getTime();
+        return dateA - dateB;
+    });
+
+    // Geçmişi tarihe göre sırala (En yeni tamamlanan en üstte olsun veya tarihi en yakın olan)
+    past.sort((a, b) => {
+        const dateA = new Date(a.due_at || a.due_date || 0).getTime();
+        const dateB = new Date(b.due_at || b.due_date || 0).getTime();
+        return dateB - dateA; // Descending
     });
 
     return { activeReminders: active, pastReminders: past };
@@ -157,17 +175,22 @@ export default function RemindersPageManager({ reminders, onRefresh }: Reminders
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.2 }}
               >
-                {(tab === 'active' || pastReminders.length > 0) && (
-                  <ReminderList reminders={tab === 'active' ? activeReminders : pastReminders} />
+                {tab === 'active' && (
+                    <ReminderList reminders={activeReminders} onRefresh={onRefresh} />
                 )}
-                {tab === 'past' && pastReminders.length === 0 && (
-                  <div className="flex flex-col items-center justify-center py-16 text-center">
-                    <History className="w-16 h-16 text-zinc-400 dark:text-zinc-600 mb-4" />
-                    <p className="text-lg font-medium text-zinc-600 dark:text-zinc-400">Geçmiş hatırlatma yok</p>
-                    <p className="text-sm text-zinc-500 dark:text-zinc-500 mt-2">
-                      Tarihi geçmiş hatırlatmalarınız burada görünecek
-                    </p>
-                  </div>
+                
+                {tab === 'past' && (
+                    pastReminders.length > 0 ? (
+                        <ReminderList reminders={pastReminders} onRefresh={onRefresh} />
+                    ) : (
+                        <div className="flex flex-col items-center justify-center py-16 text-center">
+                            <History className="w-16 h-16 text-zinc-400 dark:text-zinc-600 mb-4" />
+                            <p className="text-lg font-medium text-zinc-600 dark:text-zinc-400">Geçmiş hatırlatma yok</p>
+                            <p className="text-sm text-zinc-500 dark:text-zinc-500 mt-2">
+                            Tamamlanan hatırlatmalarınız burada görünecek
+                            </p>
+                        </div>
+                    )
                 )}
               </motion.div>
             ) : null}

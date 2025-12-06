@@ -17,29 +17,18 @@ export async function createSupabaseServerClient(
 
   return createServerClient(url, anonKey, {
     cookies: {
-      get(name: string) {
-        try {
-          return (cookieStore as any)?.get?.(name)?.value;
-        } catch {
-          return undefined;
-        }
+      getAll() {
+        return cookieStore.getAll();
       },
-      set(name: string, value: string, options: CookieOptions) {
+      setAll(cookiesToSet) {
         try {
-          if ("set" in (cookieStore as any)) {
-            (cookieStore as any).set({ name, value, ...options });
-          }
+          cookiesToSet.forEach(({ name, value, options }) =>
+            cookieStore.set(name, value, options)
+          );
         } catch {
-          // ignore set attempts in RSC where cookies() is read-only
-        }
-      },
-      remove(name: string, options: CookieOptions) {
-        try {
-          if ("set" in (cookieStore as any)) {
-            (cookieStore as any).set({ name, value: "", ...options });
-          }
-        } catch {
-          // ignore remove attempts in RSC where cookies() is read-only
+          // The `setAll` method was called from a Server Component.
+          // This can be ignored if you have middleware refreshing
+          // user sessions.
         }
       },
     },
@@ -60,14 +49,16 @@ export function createSupabaseMiddlewareClient(
 
   return createServerClient(url, anonKey, {
     cookies: {
-      get(name: string) {
-        return req.cookies.get(name)?.value;
+      getAll() {
+        return req.cookies.getAll();
       },
-      set(name: string, value: string, options: CookieOptions) {
-        res.cookies.set({ name, value, ...options });
-      },
-      remove(name: string, options: CookieOptions) {
-        res.cookies.set({ name, value: "", ...options });
+      setAll(cookiesToSet) {
+        cookiesToSet.forEach(({ name, value, options }) =>
+          req.cookies.set(name, value)
+        );
+        cookiesToSet.forEach(({ name, value, options }) =>
+          res.cookies.set(name, value, options)
+        );
       },
     },
   });

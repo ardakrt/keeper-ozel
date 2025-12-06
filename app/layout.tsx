@@ -20,6 +20,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Keeper",
   description: "Keeper",
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export default async function RootLayout({
@@ -52,9 +55,9 @@ export default async function RootLayout({
     accentColor = ((pref2 as any)?.accent_color as string) || "#3b82f6";
   }
   return (
-    <html lang="en" className={`${themeClass} h-full`} suppressHydrationWarning>
+    <html lang="en" className={`${themeClass} h-[100dvh]`} suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased h-screen overflow-hidden`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased h-[100dvh] overflow-hidden`}
         style={{ "--accent-color": accentColor } as React.CSSProperties}
       >
         <ThemeProvider>

@@ -19,18 +19,6 @@ export default function IBANQRModal({ isOpen, onClose, iban, label }: IBANQRModa
   const [copied, setCopied] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-    return () => setMounted(false);
-  }, []);
-
-  // Generate QR code when modal opens
-  useEffect(() => {
-    if (isOpen && iban) {
-      generateQRCode();
-    }
-  }, [isOpen, iban]);
-
   const generateQRCode = async () => {
     try {
       // Remove spaces from IBAN
@@ -52,6 +40,18 @@ export default function IBANQRModal({ isOpen, onClose, iban, label }: IBANQRModa
       console.error("QR kod oluşturma hatası:", error);
     }
   };
+
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+
+  // Generate QR code when modal opens
+  useEffect(() => {
+    if (isOpen && iban) {
+      generateQRCode();
+    }
+  }, [isOpen, iban]);
 
   const downloadQR = () => {
     if (!qrDataUrl) return;

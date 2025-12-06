@@ -4,30 +4,49 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createBrowserClient } from '@/lib/supabase/client';
-import CardsPageManager from '@/components/CardsPageManager';
-import IbansPageManager from '@/components/IbansPageManager';
-import AccountsPageManager from '@/components/AccountsPageManager';
 import { useRouter } from 'next/navigation';
 import { useModalStore } from '@/lib/store/useModalStore';
-import { getCardsCache, getIbansCache } from '@/components/DataPreloader';
+import { useAppStore } from '@/lib/store/useAppStore';
+import { getCardsCache, getIbansCache, getAccountsCache, isCacheFresh } from '@/components/DataPreloader';
 import { Lock, Loader2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import dynamic from 'next/dynamic';
+
+// Lazy load heavy manager components to reduce initial bundle size and parsing time
+const CardsPageManager = dynamic(() => import('@/components/CardsPageManager'), {
+  loading: () => <div className="w-full h-48 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-emerald-500" /></div>,
+  ssr: false 
+});
+const IbansPageManager = dynamic(() => import('@/components/IbansPageManager'), {
+  loading: () => <div className="w-full h-48 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-emerald-500" /></div>,
+  ssr: false
+});
+const AccountsPageManager = dynamic(() => import('@/components/AccountsPageManager'), {
+  loading: () => <div className="w-full h-48 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-emerald-500" /></div>,
+  ssr: false
+});
 
 export default function WalletPage() {
-  const [cards, setCards] = useState<any[]>([]);
-  const [ibans, setIbans] = useState<any[]>([]);
-  const [accounts, setAccounts] = useState<any[]>([]);
+  const { cards: storeCards, ibans: storeIbans, accounts: storeAccounts, isLoaded, user: storeUser, setCards: setStoreCards, setIbans: setStoreIbans, setAccounts: setStoreAccounts } = useAppStore();
+  // Initialize with store data if available for instant display
+  const [cards, setCards] = useState<any[]>(storeCards || []);
+  const [ibans, setIbans] = useState<any[]>(storeIbans || []);
+  const [accounts, setAccounts] = useState<any[]>(storeAccounts || []);
   const [activeTab, setActiveTab] = useState('cards');
   const [searchQuery, setSearchQuery] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
   
   // PIN States
   const [isPinRequired, setIsPinRequired] = useState(false);
-  const [isPinVerified, setIsPinVerified] = useState(false);
+  const [isPinVerified, setIsPinVerified] = useState(() => {
+    // Check session storage immediately on mount
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('wallet_pin_verified') === 'true';
+    }
+    return false;
+  });
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState(false);
   const [storedPin, setStoredPin] = useState<string | null>(null);
-  const [checkingPin, setCheckingPin] = useState(true);
   const cardsRef = useRef<any>(null);
   const ibansRef = useRef<any>(null);
   const accountsRef = useRef<any>(null);
@@ -50,6 +69,15 @@ export default function WalletPage() {
     setCurrentView("list");
   }, [activeTab]);
 
+  // Sync with store when it updates
+  useEffect(() => {
+    if (isLoaded) {
+      setCards(storeCards);
+      setIbans(storeIbans);
+      setAccounts(storeAccounts);
+    }
+  }, [isLoaded, storeCards, storeIbans, storeAccounts]);
+
   // Switch to relevant tab if global modal is opened
   useEffect(() => {
     if (isAddCardModalOpen) {
@@ -63,128 +91,111 @@ export default function WalletPage() {
     }
   }, [isAddIbanModalOpen]);
 
-  // Check PIN requirement on mount
+  // Check PIN requirement on mount (non-blocking)
   useEffect(() => {
     const checkPinRequirement = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.push('/login');
-        return;
+      // Already verified via session? Skip check
+      if (isPinVerified) return;
+      
+      // Use store user if available to avoid async blocking call
+      let userId = storeUser?.id;
+      
+      if (!userId) {
+         const { data: { user } } = await supabase.auth.getUser();
+         if (!user) {
+           // router.push('/login'); // Don't redirect inside useEffect immediately, let layout handle it
+           return;
+         }
+         userId = user.id;
       }
 
       const { data: pref } = await supabase
         .from('user_preferences')
         .select('wallet_pin_enabled, wallet_pin')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .single();
 
       if (pref?.wallet_pin_enabled && pref?.wallet_pin) {
         setIsPinRequired(true);
         setStoredPin(pref.wallet_pin);
-        
-        // Check session storage for already verified
-        const sessionVerified = sessionStorage.getItem('wallet_pin_verified');
-        if (sessionVerified === 'true') {
-          setIsPinVerified(true);
-        }
       } else {
         setIsPinVerified(true);
       }
-      setCheckingPin(false);
     };
 
     checkPinRequirement();
-  }, [router, supabase]);
+  }, [router, supabase, isPinVerified, storeUser]);
 
-  const handlePinSubmit = () => {
-    if (pinInput === storedPin) {
-      setIsPinVerified(true);
-      setPinError(false);
-      sessionStorage.setItem('wallet_pin_verified', 'true');
-      toast.success('Cüzdan kilidi açıldı');
-    } else {
-      setPinError(true);
-      setPinInput('');
-      toast.error('Yanlış PIN');
-    }
-  };
-
-  const handlePinKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && pinInput.length >= 4) {
-      handlePinSubmit();
-    }
-  };
-
-  const loadData = useCallback(async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
-      router.push('/login');
+  const loadData = useCallback(async (force: boolean = false) => {
+    // If store is loaded, we don't need to fetch anything manually!
+    if (!force && isLoaded) {
       return;
     }
 
-    const { isCacheFresh } = await import('@/components/DataPreloader');
+    // Fallback: Try to get user ID
+    let userId = storeUser?.id;
+    if (!userId) {
+       const { data: { user } } = await supabase.auth.getUser();
+       if (!user) return;
+       userId = user.id;
+    }
 
     if (activeTab === 'cards') {
       // Check cache first
-      const cachedCards = getCardsCache(user.id);
-      if (cachedCards && cachedCards.length > 0) {
-        setCards(cachedCards);
-        setIsLoading(false);
+      if (!force) {
+        const cachedCards = getCardsCache(userId);
+        if (cachedCards && cachedCards.length > 0) {
+          setCards(cachedCards);
+          setStoreCards(cachedCards);
 
-        // Only fetch in background if cache is stale
-        if (isCacheFresh('cards', user.id)) {
-          console.log("💳 Using fresh cache for cards");
-          return;
+          if (isCacheFresh('cards', userId)) return;
         }
       }
-      const { data: cardsData } = await supabase.from('cards').select('*').order('created_at', { ascending: false });
-      if (cardsData) setCards(cardsData);
-      setIsLoading(false);
+      const { data: cardsData } = await supabase.from('safe_wallet_view').select('*').order('created_at', { ascending: false });
+      if (cardsData) {
+        setCards(cardsData);
+        setStoreCards(cardsData);
+      }
     } else if (activeTab === 'ibans') {
-      // Check cache first
-      const cachedIbans = getIbansCache(user.id);
-      if (cachedIbans && cachedIbans.length > 0) {
-        setIbans(cachedIbans);
-        setIsLoading(false);
+      if (!force) {
+        const cachedIbans = getIbansCache(userId);
+        if (cachedIbans && cachedIbans.length > 0) {
+          setIbans(cachedIbans);
+          setStoreIbans(cachedIbans);
 
-        // Only fetch in background if cache is stale
-        if (isCacheFresh('ibans', user.id)) {
-          console.log("🏦 Using fresh cache for IBANs");
-          return;
+          if (isCacheFresh('ibans', userId)) return;
         }
       }
       const { data: ibansData } = await supabase.from('ibans').select('*').order('created_at', { ascending: false });
-      if (ibansData) setIbans(ibansData);
-      setIsLoading(false);
+      if (ibansData) {
+        setIbans(ibansData);
+        setStoreIbans(ibansData);
+      }
     } else if (activeTab === 'accounts') {
-      // Check cache first
-      const { getAccountsCache } = await import('@/components/DataPreloader');
-      const cachedAccounts = getAccountsCache(user.id);
-      if (cachedAccounts && cachedAccounts.length > 0) {
-        setAccounts(cachedAccounts);
-        setIsLoading(false);
+      if (!force) {
+        const cachedAccounts = getAccountsCache(userId);
+        if (cachedAccounts && cachedAccounts.length > 0) {
+          setAccounts(cachedAccounts);
+          setStoreAccounts(cachedAccounts);
 
-        // Only fetch in background if cache is stale
-        if (isCacheFresh('accounts', user.id)) {
-          console.log("🔐 Using fresh cache for accounts");
-          return;
+          if (isCacheFresh('accounts', userId)) return;
         }
       }
 
       const { data: accountsData } = await supabase.from('accounts').select('*');
-      if (accountsData) setAccounts(accountsData);
-      setIsLoading(false);
+      if (accountsData) {
+        setAccounts(accountsData);
+        setStoreAccounts(accountsData);
+      }
     }
-  }, [activeTab, router, supabase]);
+  }, [activeTab, supabase, isLoaded, storeUser, setStoreCards, setStoreIbans, setStoreAccounts]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
   const refreshData = useCallback(() => {
-    loadData();
+    loadData(true);
   }, [loadData]);
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
@@ -244,15 +255,6 @@ export default function WalletPage() {
     }
   };
 
-  // Show loading while checking PIN
-  if (checkingPin) {
-    return (
-      <div className="w-full h-full flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
-      </div>
-    );
-  }
-
   // Show PIN entry screen if required and not verified
   if (isPinRequired && !isPinVerified) {
     return (
@@ -269,7 +271,7 @@ export default function WalletPage() {
             </div>
 
             <h2 className="text-2xl font-bold text-zinc-900 dark:text-white mb-2">Cüzdan Kilitli</h2>
-            <p className="text-zinc-500 dark:text-zinc-400 mb-8">Devam etmek için PIN'inizi girin</p>
+            <p className="text-zinc-500 dark:text-zinc-400 mb-8">Devam etmek için PIN&apos;inizi girin</p>
 
             {/* PIN Input */}
             <div className="flex justify-center gap-3 mb-6">
@@ -386,7 +388,7 @@ export default function WalletPage() {
                   {/* INPUT */}
                   <input
                     type="search"
-                    placeholder="Kart veya IBAN'larda ara..."
+                    placeholder="Kart veya IBAN&apos;larda ara..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="
@@ -465,7 +467,7 @@ export default function WalletPage() {
                     : 'text-white/70 dark:text-white/70 light:text-zinc-600 hover:text-white dark:hover:text-white light:hover:text-zinc-900 hover:bg-white/10 dark:hover:bg-white/10 light:hover:bg-zinc-200'
                     }`}
                 >
-                  IBAN'lar
+                  IBAN&apos;lar
                 </button>
                 <button
                   onClick={() => setActiveTab('accounts')}
@@ -522,3 +524,4 @@ export default function WalletPage() {
     </div>
   );
 }
+

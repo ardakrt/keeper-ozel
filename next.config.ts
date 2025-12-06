@@ -4,6 +4,7 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseHostname = SUPABASE_URL ? new URL(SUPABASE_URL).hostname : undefined;
 
 const remotePatterns = [
+  // Supabase Storage
   ...(supabaseHostname
     ? [
       {
@@ -12,10 +13,31 @@ const remotePatterns = [
       },
     ]
     : []),
+  // Google Auth / Profile Images
+  {
+    protocol: "https" as const,
+    hostname: "lh3.googleusercontent.com",
+  },
+  {
+    protocol: "https" as const,
+    hostname: "play-lh.googleusercontent.com",
+  },
+  // GitHub Auth / Profile Images
+  {
+    protocol: "https" as const,
+    hostname: "avatars.githubusercontent.com",
+  },
+  // Gravatar
   {
     protocol: "https" as const,
     hostname: "www.gravatar.com",
   },
+  // Unavatar (Fallback)
+  {
+    protocol: "https" as const,
+    hostname: "unavatar.io",
+  },
+  // Logo Services (Clearbit, Brandfetch) - Sadece güvenilir olanlar
   {
     protocol: "https" as const,
     hostname: "logo.clearbit.com",
@@ -32,22 +54,12 @@ const remotePatterns = [
     protocol: "https" as const,
     hostname: "cdn.simpleicons.org",
   },
+  // Custom CDN
   {
     protocol: "https" as const,
-    hostname: "unavatar.io",
+    hostname: "cdn.ardakaratas.com.tr",
   },
-  {
-    protocol: "https" as const,
-    hostname: "play-lh.googleusercontent.com",
-  },
-  {
-    protocol: "https" as const,
-    hostname: "*.com.tr",
-  },
-  {
-    protocol: "https" as const,
-    hostname: "*.com",
-  },
+  // Placeholder Images (Development)
   {
     protocol: "https" as const,
     hostname: "picsum.photos",
@@ -57,6 +69,9 @@ const remotePatterns = [
 const nextConfig: NextConfig = {
   images: {
     remotePatterns,
+    // Olası kötü niyetli SVG yüklemelerine karşı koruma
+    dangerouslyAllowSVG: false, 
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
   experimental: {
     serverActions: {

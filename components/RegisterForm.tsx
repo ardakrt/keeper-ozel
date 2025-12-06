@@ -3,8 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { sendVerificationCode, verifyAndCompleteRegistration } from "@/app/auth-actions";
 import { motion, AnimatePresence, easeOut, easeIn } from "framer-motion";
-import { AlertCircle } from "lucide-react";
-
+import { AlertCircle, Eye, EyeOff } from "lucide-react";
 
 type Step = "emailInput" | "detailsInput" | "verificationInput";
 
@@ -17,35 +16,33 @@ export default function RegisterForm({ onStepChange, backTrigger }: RegisterForm
   const [step, setStep] = useState<Step>("emailInput");
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
-  const [pin, setPin] = useState(["", "", "", "", "", ""]);
-  const [verificationCode, setVerificationCode] = useState(["", "", "", "", "", ""]); // Separate state for OTP
+  const [verificationCode, setVerificationCode] = useState(["", "", "", "", "", ""]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [resendStatus, setResendStatus] = useState<string | null>(null);
 
-  // Step değiştiğinde parent'a bildir
   useEffect(() => {
     if (onStepChange) {
       onStepChange(step);
     }
   }, [step, onStepChange]);
 
-  // Geri butonu tetiklendiğinde
   useEffect(() => {
     if (backTrigger && backTrigger > 0) {
       if (step === "detailsInput") {
         setStep("emailInput");
       } else if (step === "verificationInput") {
         setStep("detailsInput");
-        setVerificationCode(["", "", "", "", "", ""]); // Reset OTP
+        setVerificationCode(["", "", "", "", "", ""]);
         setError(null);
       }
     }
   }, [backTrigger, step]);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const pinRefs = [
     useRef<HTMLInputElement>(null),
     useRef<HTMLInputElement>(null),
@@ -55,7 +52,6 @@ export default function RegisterForm({ onStepChange, backTrigger }: RegisterForm
     useRef<HTMLInputElement>(null),
   ];
   
-  // Avatar seçimi
   function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -73,7 +69,6 @@ export default function RegisterForm({ onStepChange, backTrigger }: RegisterForm
     reader.readAsDataURL(file);
   }
 
-  // E-posta adımı
   function handleEmailSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!email) {
@@ -84,7 +79,6 @@ export default function RegisterForm({ onStepChange, backTrigger }: RegisterForm
     setStep("detailsInput");
   }
 
-  // Generic Pin Change Handler
   function handleGenericPinChange(
     index: number, 
     value: string, 
@@ -125,38 +119,30 @@ export default function RegisterForm({ onStepChange, backTrigger }: RegisterForm
     }
   };
 
-  // Kayıt işlemi BAŞLATMA (Detaylar adımından -> Doğrulama Adımına)
   async function handleDetailsSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
 
-    // Validasyon
     if (!name.trim()) {
       setError("Lütfen adınızı girin");
       return;
     }
-    const fullPin = pin.join("");
-    if (fullPin.length !== 6) {
-      setError("PIN 6 haneli olmalıdır");
+    if (!password || password.length < 6) {
+      setError("Şifre en az 6 karakter olmalıdır");
       return;
     }
 
     setLoading(true);
 
     try {
-      console.log("Sending OTP to:", email);
-      // Send verification code
-      const res = await sendVerificationCode(email.trim(), true); // true = Registration flow
+      const res = await sendVerificationCode(email.trim(), true);
       
-      console.log("OTP Response:", res);
-
       if (!res.success) {
          throw new Error(res.message || "Kod gönderilemedi");
       }
 
       setStep("verificationInput");
       setLoading(false);
-      // Focus first input
       setTimeout(() => pinRefs[0].current?.focus(), 100);
 
     } catch (err: any) {
@@ -166,7 +152,6 @@ export default function RegisterForm({ onStepChange, backTrigger }: RegisterForm
     }
   }
 
-  // Final Registration (Verify Code + Set Data in one action)
   async function handleFinalRegister() {
     const code = verificationCode.join("");
     if (code.length !== 6) return;
@@ -175,12 +160,11 @@ export default function RegisterForm({ onStepChange, backTrigger }: RegisterForm
     setError(null);
 
     try {
-      // Verify and complete registration in one server action
       const result = await verifyAndCompleteRegistration(
         email,
         code,
         name,
-        pin.join(""),
+        password,
         avatarFile
       );
       
@@ -188,7 +172,6 @@ export default function RegisterForm({ onStepChange, backTrigger }: RegisterForm
         throw new Error(result.message || "Kayıt tamamlanamadı");
       }
 
-      // Redirect to dashboard
       if (result.redirect) {
         window.location.href = result.redirect;
       }
@@ -199,17 +182,12 @@ export default function RegisterForm({ onStepChange, backTrigger }: RegisterForm
     }
   }
 
-  // Animation Variants
   const containerVariants = {
     hidden: { opacity: 0, x: 20 },
     visible: {
       opacity: 1,
       x: 0,
-      transition: {
-        duration: 0.4,
-        ease: easeOut,
-        staggerChildren: 0.1
-      }
+      transition: { duration: 0.4, ease: easeOut, staggerChildren: 0.1 }
     },
     exit: {
       opacity: 0,
@@ -226,7 +204,6 @@ export default function RegisterForm({ onStepChange, backTrigger }: RegisterForm
   return (
     <div className="w-full overflow-hidden">
       <AnimatePresence mode="wait">
-        {/* ADIM 1: E-POSTA */}
         {step === "emailInput" && (
           <motion.form
             key="emailInput"
@@ -237,7 +214,6 @@ export default function RegisterForm({ onStepChange, backTrigger }: RegisterForm
             onSubmit={handleEmailSubmit}
             className="space-y-8"
           >
-            {/* ... (Header and Email Input same as before) ... */}
              <motion.div variants={itemVariants} className="text-center space-y-2">
               <h1 className="text-4xl font-bold tracking-tight text-zinc-900 dark:text-white">
                 Keeper<span className="text-emerald-500">.</span>
@@ -277,7 +253,6 @@ export default function RegisterForm({ onStepChange, backTrigger }: RegisterForm
           </motion.form>
         )}
 
-        {/* ADIM 2: DETAYLAR */}
         {step === "detailsInput" && (
           <motion.form
             key="detailsInput"
@@ -285,11 +260,10 @@ export default function RegisterForm({ onStepChange, backTrigger }: RegisterForm
             initial="hidden"
             animate="visible"
             exit="exit"
-            onSubmit={handleDetailsSubmit} // Changed handler
+            onSubmit={handleDetailsSubmit}
             autoComplete="off"
             className="space-y-8"
           >
-             {/* ... (Avatar, Name, PIN inputs same as before) ... */}
              <motion.div variants={itemVariants} className="text-center space-y-2">
               <h1 className="text-4xl font-bold tracking-tight text-zinc-900 dark:text-white">
                 Keeper<span className="text-emerald-500">.</span>
@@ -297,42 +271,55 @@ export default function RegisterForm({ onStepChange, backTrigger }: RegisterForm
               <p className="text-zinc-600 dark:text-zinc-400 text-sm font-medium mt-2">Profilinizi oluşturun</p>
             </motion.div>
 
-            <div className="flex flex-col items-center space-y-8">
-              {/* Avatar */}
+            <div className="flex flex-col items-center space-y-6">
               <motion.div variants={itemVariants} className="flex flex-col items-center space-y-3">
                 <label 
                   htmlFor="avatar-upload" 
-                  className="group relative w-32 h-32 bg-zinc-100 dark:bg-white/5 border-4 border-zinc-300 dark:border-white/10 rounded-full flex items-center justify-center overflow-hidden cursor-pointer hover:border-emerald-500 dark:hover:border-emerald-400 transition-all shadow-2xl"
+                  className="group relative w-28 h-28 bg-zinc-100 dark:bg-white/5 border-4 border-zinc-300 dark:border-white/10 rounded-full flex items-center justify-center overflow-hidden cursor-pointer hover:border-emerald-500 dark:hover:border-emerald-400 transition-all shadow-xl"
                 >
                   {avatarPreview ? (
-                    <Image src={avatarPreview} alt="Avatar" width={128} height={128} className="w-full h-full object-cover" unoptimized />
+                    <Image src={avatarPreview} alt="Avatar" width={112} height={112} className="w-full h-full object-cover" unoptimized />
                   ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-zinc-400 dark:text-white/40 group-hover:text-emerald-500/50 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-zinc-400 dark:text-white/40 group-hover:text-emerald-500/50 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                     </svg>
                   )}
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
-                    <span className="opacity-0 group-hover:opacity-100 text-white font-bold text-xs bg-black/50 px-2 py-1 rounded-full backdrop-blur-sm">Değiştir</span>
+                    <span className="opacity-0 group-hover:opacity-100 text-white font-bold text-xs bg-black/50 px-2 py-1 rounded-full backdrop-blur-sm">Foto</span>
                   </div>
                 </label>
                 <input id="avatar-upload" type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
               </motion.div>
 
-              {/* Name */}
-              <motion.div variants={itemVariants} className="w-full space-y-2">
-                <label htmlFor="name" className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 ml-1 uppercase tracking-wider">Ad Soyad</label>
-                <input id="name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Adınız Soyadınız" autoComplete="new-password" className="w-full h-12 px-4 bg-zinc-100 dark:bg-white/5 border border-zinc-300 dark:border-white/10 text-zinc-900 dark:text-white rounded-xl placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/50 focus:bg-zinc-50 dark:focus:bg-white/10 transition-all duration-300" required />
-              </motion.div>
+              <div className="w-full space-y-4">
+                <motion.div variants={itemVariants} className="w-full space-y-2">
+                  <label htmlFor="name" className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 ml-1 uppercase tracking-wider">Ad Soyad</label>
+                  <input id="name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Adınız Soyadınız" autoComplete="new-password" className="w-full h-12 px-4 bg-zinc-100 dark:bg-white/5 border border-zinc-300 dark:border-white/10 text-zinc-900 dark:text-white rounded-xl placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/50 focus:bg-zinc-50 dark:focus:bg-white/10 transition-all duration-300" required />
+                </motion.div>
 
-              {/* PIN */}
-              <motion.div variants={itemVariants} className="w-full space-y-4">
-                <h3 className="text-lg font-medium text-zinc-900 dark:text-white text-center">6 Haneli PIN Oluşturun</h3>
-                <div className="flex justify-center gap-2">
-                  {pin.map((digit, index) => (
-                    <input key={index} ref={pinRefs[index]} type="password" inputMode="numeric" maxLength={1} value={digit} onChange={(e) => handleGenericPinChange(index, e.target.value, pin, setPin)} onKeyDown={(e) => handleGenericPinKeyDown(index, e, pin)} onPaste={(e) => handlePaste(e, setPin)} autoComplete="new-password" className="w-10 h-14 bg-zinc-100 dark:bg-white/5 border border-zinc-300 dark:border-white/10 text-zinc-900 dark:text-white text-center text-2xl font-bold rounded-xl focus:outline-none focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/50 focus:bg-zinc-50 dark:focus:bg-white/10 transition-all duration-300" />
-                  ))}
-                </div>
-              </motion.div>
+                <motion.div variants={itemVariants} className="w-full space-y-2">
+                  <label htmlFor="password" className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 ml-1 uppercase tracking-wider">Şifre Oluşturun</label>
+                  <div className="relative group">
+                    <input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="En az 6 karakter"
+                      autoComplete="new-password"
+                      className="w-full h-12 px-4 bg-zinc-100 dark:bg-white/5 border border-zinc-300 dark:border-white/10 text-zinc-900 dark:text-white rounded-xl placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/50 focus:bg-zinc-50 dark:focus:bg-white/10 transition-all duration-300"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-white transition-colors"
+                    >
+                      {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                    </button>
+                  </div>
+                </motion.div>
+              </div>
             </div>
 
             {error && <motion.p variants={itemVariants} className="text-sm text-red-400 text-center">{error}</motion.p>}
@@ -343,7 +330,6 @@ export default function RegisterForm({ onStepChange, backTrigger }: RegisterForm
           </motion.form>
         )}
 
-        {/* ADIM 3: DOĞRULAMA */}
         {step === "verificationInput" && (
           <motion.div
             key="verificationInput"

@@ -4,6 +4,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Pause, RotateCcw, Flag, Timer, Watch, ChevronDown, Bell, Trash2, History, X } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
 
 // Yardımcı fonksiyon: Süreyi biçimlendir (MM:SS.ms veya HH:MM:SS)
 const formatTime = (ms: number) => {
@@ -44,6 +45,14 @@ type HistoryItem = {
 export default function TimerPage() {
     const [mode, setMode] = useState<'stopwatch' | 'timer'>('stopwatch');
     const [history, setHistory] = useState<HistoryItem[]>([]);
+
+    const searchParams = useSearchParams();
+
+    useEffect(() => {
+        if (searchParams.get('action') === 'new-timer') {
+            setMode('timer');
+        }
+    }, [searchParams]);
 
     // --- KRONOMETRE STATE ---
     const [swTime, setSwTime] = useState(0);
@@ -160,7 +169,7 @@ export default function TimerPage() {
 
     return (
         <main className="w-full h-full bg-transparent">
-            <div className="w-full h-full px-8 pt-16 pb-16">
+            <div className="w-full h-full px-8 pt-6 pb-16">
 
                 {/* Ana Kapsayıcı - Grid Layout */}
                 <div className="w-full min-h-[750px] light:bg-white/80 dark:bg-black/20 backdrop-blur-sm light:border-zinc-200 dark:border-white/10 border rounded-3xl shadow-2xl overflow-hidden grid grid-cols-1 lg:grid-cols-3 relative">

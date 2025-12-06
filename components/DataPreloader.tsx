@@ -36,8 +36,8 @@ function getFromCache<T>(key: string, userId: string): T | null {
   }
 }
 
-// Helper to set cache to localStorage
-function setCache<T>(key: string, data: T, userId: string) {
+// Helper to set cache to localStorage (Exported)
+export function updateCache<T>(key: string, data: T, userId: string) {
   if (typeof window === 'undefined') return;
 
   try {
@@ -54,6 +54,11 @@ function setCache<T>(key: string, data: T, userId: string) {
   } catch (e) {
     console.error(`Error writing ${key} cache:`, e);
   }
+}
+
+// Helper to set cache to localStorage (Internal usage kept for backward compat if needed, but now we use the exported one)
+function setCache<T>(key: string, data: T, userId: string) {
+  updateCache(key, data, userId);
 }
 
 // Helper to check if cache is fresh (not stale)
@@ -110,19 +115,6 @@ export function getDriveStorageCache(userId?: string): any | null {
 }
 
 export default function DataPreloader() {
-  useEffect(() => {
-    // Use requestIdleCallback if available, otherwise small timeout
-    const startPreload = () => {
-      if ('requestIdleCallback' in window) {
-        (window as any).requestIdleCallback(() => preloadAllData());
-      } else {
-        setTimeout(preloadAllData, 100);
-      }
-    };
-
-    startPreload();
-  }, []);
-
   const preloadAllData = async () => {
     try {
       const supabase = createBrowserClient();
@@ -171,7 +163,7 @@ export default function DataPreloader() {
 
   const preloadCards = async (supabase: any, userId: string) => {
     const { data, error } = await supabase
-      .from("cards")
+      .from("safe_wallet_view")
       .select("*")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
@@ -243,6 +235,19 @@ export default function DataPreloader() {
       console.error('Drive preload failed:', error);
     }
   };
+
+  useEffect(() => {
+    // Use requestIdleCallback if available, otherwise small timeout
+    const startPreload = () => {
+      if ('requestIdleCallback' in window) {
+        (window as any).requestIdleCallback(() => preloadAllData());
+      } else {
+        setTimeout(preloadAllData, 100);
+      }
+    };
+
+    startPreload();
+  }, []);
 
   return null;
 }

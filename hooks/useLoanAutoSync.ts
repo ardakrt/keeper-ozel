@@ -32,14 +32,6 @@ import { createBrowserClient } from "@/lib/supabase/client";
 export function useLoanAutoSync() {
   const hasRun = useRef(false);
 
-  useEffect(() => {
-    // Prevent double execution in development (React Strict Mode)
-    if (hasRun.current) return;
-    hasRun.current = true;
-
-    syncLoans();
-  }, []);
-
   const syncLoans = async () => {
     try {
       const supabase = createBrowserClient();
@@ -120,6 +112,14 @@ export function useLoanAutoSync() {
       console.error("[LoanAutoSync] Unexpected error:", error);
     }
   };
+
+  useEffect(() => {
+    // Prevent double execution in development (React Strict Mode)
+    if (hasRun.current) return;
+    hasRun.current = true;
+
+    syncLoans();
+  }, []);
 }
 
 /**

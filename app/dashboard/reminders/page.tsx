@@ -3,47 +3,67 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { createBrowserClient } from '@/lib/supabase/client';
-import RemindersPageManager from '@/components/RemindersPageManager';
 import { useRouter } from 'next/navigation';
-import { getRemindersCache } from '@/components/DataPreloader';
+import { getRemindersCache, isCacheFresh } from '@/components/DataPreloader';
+import { useAppStore } from '@/lib/store/useAppStore';
+import dynamic from 'next/dynamic';
+import { Loader2 } from 'lucide-react';
+
+const RemindersPageManager = dynamic(() => import('@/components/RemindersPageManager'), {
+  loading: () => <div className="w-full h-full flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-emerald-500" /></div>,
+  ssr: false
+});
 
 export default function RemindersPage() {
-  const [reminders, setReminders] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { reminders: storeReminders, isLoaded, user: storeUser, setReminders: setStoreReminders } = useAppStore();
+  const [reminders, setReminders] = useState<any[]>(storeReminders || []);
   const supabase = createBrowserClient();
-  const router = useRouter();
 
-  const loadReminders = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      router.push('/login');
-      return;
+  useEffect(() => {
+    if (isLoaded) {
+      setReminders(storeReminders);
+    }
+  }, [isLoaded, storeReminders]);
+
+  const loadReminders = useCallback(async (force: boolean = false) => {
+    if (!force && isLoaded) return;
+
+    // Fallback: Try to get user ID
+    let userId = storeUser?.id;
+    if (!userId) {
+       const { data: { user } } = await supabase.auth.getUser();
+       if (!user) {
+         // router.push('/login'); // Layout handles this
+         return;
+       }
+       userId = user.id;
     }
 
-    // Check cache first for instant load
-    const cachedReminders = getRemindersCache(user.id);
-    if (cachedReminders && cachedReminders.length > 0) {
-      setReminders(cachedReminders);
-      setIsLoading(false);
+    // Check cache first for instant load (only if not forced)
+    if (!force) {
+        const cachedReminders = getRemindersCache(userId);
+        if (cachedReminders && cachedReminders.length > 0) {
+            setReminders(cachedReminders);
+            setStoreReminders(cachedReminders); // Sync store
 
-      // Only fetch in background if cache is stale
-      const { isCacheFresh } = await import('@/components/DataPreloader');
-      if (isCacheFresh('reminders', user.id)) {
-        console.log("⏰ Using fresh cache for reminders");
-        return;
-      }
+            if (isCacheFresh('reminders', userId)) {
+                return;
+            }
+        }
     }
 
-    // No cache or stale, load normally
+    // No cache or stale or forced, load normally
     const { data: remindersData } = await supabase
       .from('reminders')
       .select('*')
-      .eq('user_id', user.id)
-      .order('reminder_date', { ascending: true });
+      .eq('user_id', userId)
+      .order('due_at', { ascending: true }); // Fixed ordering key to match schema
 
-    if (remindersData) setReminders(remindersData);
-    setIsLoading(false);
-  }, [router, supabase]);
+    if (remindersData) {
+        setReminders(remindersData);
+        setStoreReminders(remindersData); // Sync store
+    }
+  }, [supabase, isLoaded, storeUser, setStoreReminders]);
 
   useEffect(() => {
     loadReminders();
@@ -51,7 +71,7 @@ export default function RemindersPage() {
 
   return (
     <div className="w-full h-full pt-6">
-      <RemindersPageManager reminders={reminders} onRefresh={loadReminders} />
+      <RemindersPageManager reminders={reminders} onRefresh={() => loadReminders(true)} />
     </div>
   );
 }

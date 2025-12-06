@@ -11,6 +11,7 @@ export type Card = {
   exp_month_enc: string;
   exp_year_enc: string;
   last_four: string;
+  masked_card_number?: string;
   card_brand: "visa" | "mastercard" | "troy" | "amex" | "unknown";
   created_at: string;
   updated_at: string;

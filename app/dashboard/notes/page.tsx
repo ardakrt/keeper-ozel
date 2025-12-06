@@ -2,12 +2,29 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import NoteEditor from '@/components/editor/NoteEditor';
-import AttachmentsSidebar from '@/components/editor/AttachmentsSidebar';
-import { uploadFile } from '@/app/actions/upload';
-import { createBrowserClient } from '@/lib/supabase/client';
-import { Plus, FileText, Search, Trash2, MoreVertical, AlertTriangle, X } from 'lucide-react';
+import { Plus, FileText, Search, Trash2, AlertTriangle, X, Loader2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { stripHtml } from '@/lib/textUtils';
+import dynamic from 'next/dynamic';
+import { useAppStore } from '@/lib/store/useAppStore';
+import { createBrowserClient } from '@/lib/supabase/client';
+import { uploadFile } from '@/app/actions/upload';
+import { getNotesCache, isCacheFresh, invalidateCache } from '@/components/DataPreloader';
+
+// Lazy load heavy components
+const NoteEditor = dynamic(() => import('@/components/editor/NoteEditor'), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full flex items-center justify-center bg-white/5">
+      <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
+    </div>
+  ),
+});
+
+const AttachmentsSidebar = dynamic(() => import('@/components/editor/AttachmentsSidebar'), {
+  ssr: false,
+  loading: () => <div className="w-72 h-full bg-transparent border-l border-white/10 animate-pulse" />
+});
 
 export interface Attachment {
   id: string;
@@ -25,17 +42,16 @@ interface Note {
 }
 
 export default function NotesPage() {
-  const [notes, setNotes] = useState<Note[]>([]);
+  const { notes: storeNotes, isLoaded, user: storeUser, addNote, updateNote, deleteNote: storeDeleteNote } = useAppStore();
+  const [notes, setNotes] = useState<Note[]>(storeNotes || []);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved');
   const [searchQuery, setSearchQuery] = useState('');
-  const [showSidebar, setShowSidebar] = useState(true);
   const [deleteConfirmNote, setDeleteConfirmNote] = useState<Note | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -43,30 +59,54 @@ export default function NotesPage() {
   
   const supabase = createBrowserClient();
 
-  // Load all notes
+  // Load notes with Cache/Store strategy
   const loadNotes = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (isLoaded) {
+      // Select first note if store has data and nothing selected
+      if (storeNotes.length > 0 && !selectedNoteId) {
+        // Defer selection to avoid render issues
+        setTimeout(() => selectNote(storeNotes[0]), 0);
+      }
+      return;
+    }
+
+    // Fallback user ID
+    let userId = storeUser?.id;
+    if (!userId) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        userId = user.id;
+    }
+
+    // Check cache
+    const cachedNotes = getNotesCache(userId);
+    if (cachedNotes && cachedNotes.length > 0) {
+      setNotes(cachedNotes);
+      if (!selectedNoteId) setTimeout(() => selectNote(cachedNotes[0]), 0);
+      
+      if (isCacheFresh('notes', userId)) return;
+    }
 
     const { data, error } = await supabase
       .from('notes')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .order('updated_at', { ascending: false });
 
     if (data) {
       setNotes(data);
-      // Select first note if none selected
       if (data.length > 0 && !selectedNoteId) {
         selectNote(data[0]);
       }
     }
-    setIsLoading(false);
-  }, [supabase, selectedNoteId]);
+  }, [supabase, isLoaded, storeNotes, selectedNoteId, storeUser]);
 
   useEffect(() => {
+    if (isLoaded) {
+      setNotes(storeNotes);
+    }
     loadNotes();
-  }, []);
+  }, [isLoaded, storeNotes, loadNotes]);
 
   // Select a note
   const selectNote = (note: Note) => {
@@ -82,14 +122,19 @@ export default function NotesPage() {
     if (isCreating) return;
     
     setIsCreating(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      setIsCreating(false);
-      return;
+    // Use storeUser if available to speed up
+    let userId = storeUser?.id;
+    if (!userId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setIsCreating(false);
+        return;
+      }
+      userId = user.id;
     }
 
     const newNote = {
-      user_id: user.id,
+      user_id: userId,
       title: '',
       content: '',
       attachments: [],
@@ -104,7 +149,9 @@ export default function NotesPage() {
 
     if (data) {
       setNewlyCreatedId(data.id);
+      // Update both local state and store
       setNotes(prev => [data, ...prev]);
+      addNote(data);
       selectNote(data);
       toast.success('Yeni not oluşturuldu');
       
@@ -112,6 +159,9 @@ export default function NotesPage() {
       setTimeout(() => {
         setNewlyCreatedId(null);
       }, 2000);
+    } else if (error) {
+      console.error('Error creating note:', error);
+      toast.error('Not oluşturulamadı');
     }
     
     setIsCreating(false);
@@ -136,6 +186,8 @@ export default function NotesPage() {
       .eq('id', noteId);
 
     if (!error) {
+      // Update both local state and store
+      storeDeleteNote(noteId);
       setNotes(prev => {
         const remaining = prev.filter(n => n.id !== noteId);
         
@@ -172,48 +224,67 @@ export default function NotesPage() {
     if (!title && !content && attachments.length === 0) return;
 
     setSaveStatus('saving');
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const noteData = {
-      title,
-      content,
-      attachments,
-      updated_at: new Date().toISOString()
-    };
-
+    
     try {
-      const { error } = await supabase
+      // Verify session first
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error('Oturum süreniz dolmuş. Lütfen sayfayı yenileyin.');
+        setSaveStatus('error');
+        return;
+      }
+
+      const noteData = {
+        title,
+        content,
+        attachments,
+        updated_at: new Date().toISOString()
+      };
+
+      const { data, error } = await supabase
         .from('notes')
         .update(noteData)
-        .eq('id', selectedNoteId);
+        .eq('id', selectedNoteId)
+        .select();
 
       if (error) throw error;
 
-      // Update local state
-      setNotes(prev => prev.map(n => 
+      if (!data || data.length === 0) {
+        console.error('Update returned no data. User:', user.id, 'Note:', selectedNoteId);
+        throw new Error("Not güncellenemedi (Kayıt bulunamadı veya yetki yok)");
+      }
+
+      // Update both local state and store
+      const updatedNotes = notes.map(n => 
         n.id === selectedNoteId 
           ? { ...n, ...noteData }
           : n
-      ));
+      );
+      
+      setNotes(updatedNotes);
+      updateNote(selectedNoteId, noteData);
+
+      // Update Cache for persistence across reloads
+      invalidateCache('notes');
 
       setSaveStatus('saved');
     } catch (err) {
       console.error('Error saving note:', err);
       setSaveStatus('error');
+      toast.error('Not kaydedilirken bir hata oluştu');
     }
-  }, [title, content, attachments, selectedNoteId, supabase]);
+  }, [title, content, attachments, selectedNoteId, supabase, updateNote, notes]);
 
   // Auto-save
   useEffect(() => {
-    if (isLoading || !selectedNoteId) return;
+    if (!selectedNoteId) return;
     
     const saveTimer = setTimeout(() => {
       saveNote();
     }, 1000);
 
     return () => clearTimeout(saveTimer);
-  }, [title, content, attachments, saveNote, isLoading, selectedNoteId]);
+  }, [title, content, attachments, saveNote, selectedNoteId]);
 
   // Ctrl+S Handler
   useEffect(() => {
@@ -319,12 +390,6 @@ export default function NotesPage() {
     note.content?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Strip HTML for preview
-  const stripHtml = (html: string | null | undefined): string => {
-    if (!html) return "";
-    return html.replace(/<[^>]*>/g, '').trim();
-  };
-
   // Format date
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -343,13 +408,8 @@ export default function NotesPage() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="w-full h-full flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500"></div>
-      </div>
-    );
-  }
+  // Remove explicit Loading state as we use Store/Cache for instant render
+  // if (isLoading) return ... (Removed)
 
   return (
     <div className="w-full h-full flex items-center justify-center p-4 animate-fadeIn">
@@ -445,7 +505,7 @@ export default function NotesPage() {
                   return (
                   <motion.div
                     key={note.id}
-                    initial={isNewlyCreated ? { opacity: 0, scale: 0.8, y: -20 } : { opacity: 0, x: -20 }}
+                    initial={isNewlyCreated ? { opacity: 0, scale: 0.8, y: -20 } : false}
                     animate={{ 
                       opacity: 1, 
                       scale: 1, 
@@ -457,7 +517,7 @@ export default function NotesPage() {
                       type: isNewlyCreated ? "spring" : "tween",
                       stiffness: 500,
                       damping: 30,
-                      delay: isNewlyCreated ? 0 : index * 0.05 
+                      delay: isNewlyCreated ? 0 : 0 
                     }}
                     onClick={() => selectNote(note)}
                     className={`group relative p-4 rounded-xl cursor-pointer transition-all duration-200 ${
@@ -607,7 +667,7 @@ export default function NotesPage() {
                 </div>
               </main>
 
-              {/* Ek Dosyalar Paneli */}
+              {/* Ek Dosyalar Paneli - Lazy loaded */}
               <div className="w-72 h-full border-l border-white/10 dark:border-white/10 light:border-zinc-200 bg-transparent">
                 <AttachmentsSidebar 
                   attachments={attachments}

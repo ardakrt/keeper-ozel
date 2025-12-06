@@ -1,4 +1,4 @@
-
+/* eslint-disable @typescript-eslint/no-require-imports */
 const fs = require('fs');
 const path = require('path');
 
@@ -119,7 +119,7 @@ files.forEach(filePath => {
      const processed = processClassString(classStr);
      
      if (p1) return `className="${processed}"`;
-     if (p2) return `className={`${processed}`}`;
+     if (p2) return `className={\`${processed}\`}`;
      if (p3) return `className='${processed}'`;
      return match;
   });

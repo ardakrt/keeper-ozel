@@ -1,25 +1,13 @@
+import DOMPurify from 'isomorphic-dompurify';
+
 /**
  * HTML etiketlerini ve entity'leri temizleyerek düz metin döndürür
+ * Güvenlik: isomorphic-dompurify kullanarak XSS koruması sağlar
  */
 export function stripHtml(html: string): string {
   if (!html) return '';
-
-  // HTML etiketlerini kaldır
-  let text = html.replace(/<[^>]*>/g, '');
-
-  // HTML entity'leri decode et (örn: &nbsp; → boşluk)
-  text = text
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'");
-
-  // Çoklu boşlukları ve satır başlarını temizle
-  text = text.replace(/\s+/g, ' ').trim();
-
-  return text;
+  // Configure DOMPurify to strip all tags
+  return DOMPurify.sanitize(html, { ALLOWED_TAGS: [] });
 }
 
 /**
@@ -50,4 +38,15 @@ export function extractTitleFromHtml(html: string): string {
   // İlk satırı veya ilk 50 karakteri başlık yap
   const firstLine = plainText.split('\n')[0] || plainText;
   return truncateText(firstLine, 50);
+}
+
+/**
+ * Saate göre selamlama mesajı döndürür
+ */
+export function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 12) return "Günaydın";
+  if (hour >= 12 && hour < 18) return "İyi Günler";
+  if (hour >= 18 && hour < 22) return "İyi Akşamlar";
+  return "İyi Geceler";
 }

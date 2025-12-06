@@ -6,7 +6,7 @@ import { User as SupabaseUser } from '@supabase/supabase-js';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { createBrowserClient } from '@/lib/supabase/client';
-import { updateAvatarMetadata, updateUserName, updateUserEmail } from '@/app/actions';
+import { updateAvatarMetadata, updateUserName, updateUserEmail, updateUserPin } from '@/app/actions';
 import { toast } from 'react-hot-toast';
 import bcrypt from 'bcryptjs';
 import { motion } from 'framer-motion';
@@ -43,10 +43,16 @@ export default function ProfileModal({ isOpen, onClose, user, onUpdate }: Profil
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [currentAvatarUrl, setCurrentAvatarUrl] = useState('');
 
+  // Password States
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+
   // PIN States
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [isUpdatingPin, setIsUpdatingPin] = useState(false);
+  const [securityTab, setSecurityTab] = useState<'password' | 'pin'>('password');
 
   // ESC tuşu ile kapatma
   useEffect(() => {
@@ -344,36 +350,32 @@ export default function ProfileModal({ isOpen, onClose, user, onUpdate }: Profil
     }
   };
 
-  // Handle PIN Update - DUAL UPDATE (Auth Password + Database Hash)
-  const handlePinUpdate = async () => {
+  // Handle Password Update - DUAL UPDATE (Auth Password + Database Hash)
+  const handlePasswordUpdate = async () => {
     // Validation
-    if (newPin.length !== 6) {
-      toast.error('Yeni PIN 6 haneli olmalı');
+    if (newPassword.length < 6) {
+      toast.error('Yeni parola en az 6 karakter olmalı');
       return;
     }
-    if (newPin !== confirmPin) {
-      toast.error('Yeni PIN\'ler eşleşmiyor');
-      return;
-    }
-    if (!/^\d{6}$/.test(newPin)) {
-      toast.error('PIN sadece rakamlardan oluşmalı');
+    if (newPassword !== confirmPassword) {
+      toast.error('Yeni parolalar eşleşmiyor');
       return;
     }
 
-    setIsUpdatingPin(true);
+    setIsUpdatingPassword(true);
     try {
       if (!user) {
         throw new Error('Kullanıcı bulunamadı');
       }
 
-      console.log('Starting DUAL PIN update for user:', user.id);
+      console.log('Starting Password update for user:', user.id);
 
       // ========================================
       // STEP 1: Update Supabase Auth Password
       // ========================================
       console.log('STEP 1: Updating Supabase Auth Password...');
       const { error: authError } = await supabase.auth.updateUser({
-        password: newPin
+        password: newPassword
       });
 
       if (authError) {
@@ -384,24 +386,24 @@ export default function ProfileModal({ isOpen, onClose, user, onUpdate }: Profil
       console.log('✅ Auth Password updated successfully.');
 
       // ========================================
-      // STEP 2: Update Database PIN Hash
+      // STEP 2: Update Database Password Hash
       // ========================================
-      console.log('STEP 2: Hashing PIN for database storage...');
-      const hashedPin = await bcrypt.hash(newPin, 10);
+      console.log('STEP 2: Hashing Password for database storage...');
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
       console.log('Updating user_preferences table for user:', user.id);
 
       // Update the user_preferences table
       const { data, error: dbError } = await supabase
         .from('user_preferences')
-        .update({ pin: hashedPin })
+        .update({ pin: hashedPassword })
         .eq('user_id', user.id)
         .select();
 
       console.log('Database Update Result:', data, dbError);
 
       if (dbError) {
-        console.error('Database PIN Hash Update Failed:', dbError);
-        throw new Error('Database PIN Hash güncellenemedi: ' + dbError.message);
+        console.error('Database Password Hash Update Failed:', dbError);
+        throw new Error('Database Password Hash güncellenemedi: ' + dbError.message);
       }
 
       // Check if no rows were updated (user_preferences record doesn't exist)
@@ -412,7 +414,7 @@ export default function ProfileModal({ isOpen, onClose, user, onUpdate }: Profil
         console.log('Attempting to INSERT new user_preferences record...');
         const { error: insertError } = await supabase
           .from('user_preferences')
-          .insert({ user_id: user.id, pin: hashedPin });
+          .insert({ user_id: user.id, pin: hashedPassword });
 
         if (insertError) {
           console.error('Insert Failed:', insertError);
@@ -422,10 +424,59 @@ export default function ProfileModal({ isOpen, onClose, user, onUpdate }: Profil
 
         console.log('✅ New user_preferences record created successfully.');
       } else {
-        console.log('✅ Database PIN Hash updated successfully.');
+        console.log('✅ Database Password Hash updated successfully.');
       }
 
       // Success!
+      toast.success('Parola başarıyla güncellendi!', {
+        duration: 2000,
+        position: 'top-center',
+      });
+
+      // Clear inputs
+      setNewPassword('');
+      setConfirmPassword('');
+
+      // Refresh router to ensure server state is synced
+      router.refresh();
+
+      // Don't close modal - keep it open so user can see success
+    } catch (err: any) {
+      console.error('Password Update Error:', err);
+      toast.error(err?.message || 'Parola güncellenemedi');
+      alert('Parola güncelleme başarısız: ' + (err?.message || 'Bilinmeyen hata'));
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  };
+
+  // PIN Update Handler
+  const handlePinUpdate = async () => {
+    if (!newPin || !confirmPin) {
+      toast.error('Lütfen tüm alanları doldurun');
+      return;
+    }
+
+    if (newPin.length !== 6 || !/^\d{6}$/.test(newPin)) {
+      toast.error('PIN 6 haneli ve sadece rakamlardan oluşmalıdır');
+      return;
+    }
+
+    if (newPin !== confirmPin) {
+      toast.error('PIN kodları eşleşmiyor');
+      return;
+    }
+
+    setIsUpdatingPin(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('new_pin', newPin);
+      formData.append('confirm_pin', confirmPin);
+      formData.append('update_auth_password', 'false');
+
+      await updateUserPin(formData);
+
       toast.success('PIN başarıyla güncellendi!', {
         duration: 2000,
         position: 'top-center',
@@ -435,14 +486,11 @@ export default function ProfileModal({ isOpen, onClose, user, onUpdate }: Profil
       setNewPin('');
       setConfirmPin('');
 
-      // Refresh router to ensure server state is synced
+      // Refresh router
       router.refresh();
-
-      // Don't close modal - keep it open so user can see success
     } catch (err: any) {
       console.error('PIN Update Error:', err);
       toast.error(err?.message || 'PIN güncellenemedi');
-      alert('PIN güncelleme başarısız: ' + (err?.message || 'Bilinmeyen hata'));
     } finally {
       setIsUpdatingPin(false);
     }
@@ -626,65 +674,156 @@ export default function ProfileModal({ isOpen, onClose, user, onUpdate }: Profil
 
       case 'security':
         return (
-          <div className="space-y-10 max-w-xl mx-auto pt-4">
-            <div className="text-center space-y-2">
-              <h3 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">Güvenlik PIN'i</h3>
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">Hesap güvenliğiniz için 6 haneli PIN kodunuzu belirleyin</p>
-            </div>
-
-            <div className="space-y-8">
-              {/* New PIN */}
-              <div className="space-y-3">
-                <label className="block text-xs font-bold text-zinc-600 dark:text-zinc-500 uppercase tracking-widest text-center">Yeni PIN</label>
-                <div className="relative group max-w-xs mx-auto">
-                  <input
-                    type="password"
-                    inputMode="numeric"
-                    maxLength={6}
-                    value={newPin || ''}
-                    onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ''))}
-                    placeholder="••••••"
-                    className="w-full h-16 bg-zinc-100 dark:bg-zinc-900/50 border border-zinc-300 dark:border-white/10 rounded-2xl text-zinc-900 dark:text-white text-3xl text-center tracking-[0.5em] focus:border-zinc-400 dark:focus:border-white/40 focus:bg-zinc-50 dark:focus:bg-zinc-900 focus:outline-none focus:ring-0 transition-all duration-300 font-mono placeholder:text-zinc-400 dark:placeholder:text-zinc-700 placeholder:tracking-[0.5em]"
-                  />
-                </div>
-              </div>
-
-              {/* Confirm PIN */}
-              <div className="space-y-3">
-                <label className="block text-xs font-bold text-zinc-600 dark:text-zinc-500 uppercase tracking-widest text-center">PIN Tekrar</label>
-                <div className="relative group max-w-xs mx-auto">
-                  <input
-                    type="password"
-                    inputMode="numeric"
-                    maxLength={6}
-                    value={confirmPin || ''}
-                    onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ''))}
-                    placeholder="••••••"
-                    className="w-full h-16 bg-zinc-100 dark:bg-zinc-900/50 border border-zinc-300 dark:border-white/10 rounded-2xl text-zinc-900 dark:text-white text-3xl text-center tracking-[0.5em] focus:border-zinc-400 dark:focus:border-white/40 focus:bg-zinc-50 dark:focus:bg-zinc-900 focus:outline-none focus:ring-0 transition-all duration-300 font-mono placeholder:text-zinc-400 dark:placeholder:text-zinc-700 placeholder:tracking-[0.5em]"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-4 max-w-xs mx-auto">
+          <div className="space-y-8 max-w-xl mx-auto pt-4">
+            {/* Tab Switcher */}
+            <div className="flex items-center justify-center gap-2 p-1.5 bg-zinc-100 dark:bg-zinc-900/50 rounded-2xl border border-zinc-200 dark:border-white/5">
               <button
-                onClick={handlePinUpdate}
-                disabled={isUpdatingPin || !newPin || !confirmPin || newPin.length !== 6 || confirmPin.length !== 6}
-                className={`w-full h-14 rounded-2xl font-bold text-sm tracking-wide transition-all duration-300 flex items-center justify-center gap-2 ${!isUpdatingPin && newPin && confirmPin && newPin.length === 6 && confirmPin.length === 6
-                  ? 'bg-zinc-900 dark:bg-white text-white dark:text-black hover:bg-zinc-800 dark:hover:bg-zinc-200 shadow-lg shadow-zinc-900/10 dark:shadow-white/10 transform hover:-translate-y-0.5'
-                  : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 cursor-not-allowed'
-                  }`}
+                onClick={() => setSecurityTab('password')}
+                className={`flex-1 px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
+                  securityTab === 'password'
+                    ? 'bg-white dark:bg-white/10 text-zinc-900 dark:text-white shadow-sm'
+                    : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'
+                }`}
               >
-                {isUpdatingPin ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    GÜNCELLENİYOR...
-                  </>
-                ) : (
-                  'PIN GÜNCELLE'
-                )}
+                Parola
+              </button>
+              <button
+                onClick={() => setSecurityTab('pin')}
+                className={`flex-1 px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
+                  securityTab === 'pin'
+                    ? 'bg-white dark:bg-white/10 text-zinc-900 dark:text-white shadow-sm'
+                    : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'
+                }`}
+              >
+                PIN Kodu
               </button>
             </div>
+
+            {securityTab === 'password' ? (
+              <>
+                <div className="text-center space-y-2">
+                  <h3 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">Güvenlik Parolası</h3>
+                  <p className="text-sm text-zinc-600 dark:text-zinc-400">Hesap güvenliğiniz için parolanızı belirleyin</p>
+                </div>
+
+                <div className="space-y-6">
+                  {/* New Password */}
+                  <div className="space-y-3">
+                    <label className="block text-xs font-bold text-zinc-600 dark:text-zinc-500 uppercase tracking-widest ml-1">Yeni Parola</label>
+                    <div className="relative group w-full">
+                      <input
+                        type="password"
+                        value={newPassword || ''}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="w-full h-12 pl-4 pr-4 bg-zinc-100 dark:bg-zinc-900/30 border border-zinc-300 dark:border-white/10 rounded-xl text-zinc-900 dark:text-white text-sm focus:border-zinc-400 dark:focus:border-white/30 focus:bg-zinc-50 dark:focus:bg-zinc-900/50 focus:outline-none focus:ring-0 transition-all duration-200 placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Confirm Password */}
+                  <div className="space-y-3">
+                    <label className="block text-xs font-bold text-zinc-600 dark:text-zinc-500 uppercase tracking-widest ml-1">Parola Tekrar</label>
+                    <div className="relative group w-full">
+                      <input
+                        type="password"
+                        value={confirmPassword || ''}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="w-full h-12 pl-4 pr-4 bg-zinc-100 dark:bg-zinc-900/30 border border-zinc-300 dark:border-white/10 rounded-xl text-zinc-900 dark:text-white text-sm focus:border-zinc-400 dark:focus:border-white/30 focus:bg-zinc-50 dark:focus:bg-zinc-900/50 focus:outline-none focus:ring-0 transition-all duration-200 placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-2 max-w-xs mx-auto">
+                  <button
+                    onClick={handlePasswordUpdate}
+                    disabled={isUpdatingPassword || !newPassword || !confirmPassword || newPassword.length < 6 || confirmPassword.length < 6}
+                    className={`w-full h-14 rounded-2xl font-bold text-sm tracking-wide transition-all duration-300 flex items-center justify-center gap-2 ${!isUpdatingPassword && newPassword && confirmPassword && newPassword.length >= 6 && confirmPassword.length >= 6
+                      ? 'bg-zinc-900 dark:bg-white text-white dark:text-black hover:bg-zinc-800 dark:hover:bg-zinc-200 shadow-lg shadow-zinc-900/10 dark:shadow-white/10 transform hover:-translate-y-0.5'
+                      : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 cursor-not-allowed'
+                      }`}
+                  >
+                    {isUpdatingPassword ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        GÜNCELLENİYOR...
+                      </>
+                    ) : (
+                      'PAROLA GÜNCELLE'
+                    )}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="text-center space-y-2">
+                  <h3 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">PIN Kodu</h3>
+                  <p className="text-sm text-zinc-600 dark:text-zinc-400">Hızlı erişim için 6 haneli PIN kodunuzu belirleyin</p>
+                </div>
+
+                <div className="space-y-6">
+                  {/* New PIN */}
+                  <div className="space-y-3">
+                    <label className="block text-xs font-bold text-zinc-600 dark:text-zinc-500 uppercase tracking-widest ml-1">Yeni PIN</label>
+                    <div className="relative group w-full">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={6}
+                        value={newPin || ''}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+                          setNewPin(val);
+                        }}
+                        placeholder="••••••"
+                        className="w-full h-12 pl-4 pr-4 bg-zinc-100 dark:bg-zinc-900/30 border border-zinc-300 dark:border-white/10 rounded-xl text-zinc-900 dark:text-white text-sm text-center tracking-[0.5em] focus:border-zinc-400 dark:focus:border-white/30 focus:bg-zinc-50 dark:focus:bg-zinc-900/50 focus:outline-none focus:ring-0 transition-all duration-200 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 placeholder:tracking-[0.3em]"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Confirm PIN */}
+                  <div className="space-y-3">
+                    <label className="block text-xs font-bold text-zinc-600 dark:text-zinc-500 uppercase tracking-widest ml-1">PIN Tekrar</label>
+                    <div className="relative group w-full">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={6}
+                        value={confirmPin || ''}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+                          setConfirmPin(val);
+                        }}
+                        placeholder="••••••"
+                        className="w-full h-12 pl-4 pr-4 bg-zinc-100 dark:bg-zinc-900/30 border border-zinc-300 dark:border-white/10 rounded-xl text-zinc-900 dark:text-white text-sm text-center tracking-[0.5em] focus:border-zinc-400 dark:focus:border-white/30 focus:bg-zinc-50 dark:focus:bg-zinc-900/50 focus:outline-none focus:ring-0 transition-all duration-200 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 placeholder:tracking-[0.3em]"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-2 max-w-xs mx-auto">
+                  <button
+                    onClick={handlePinUpdate}
+                    disabled={isUpdatingPin || !newPin || !confirmPin || newPin.length !== 6 || confirmPin.length !== 6}
+                    className={`w-full h-14 rounded-2xl font-bold text-sm tracking-wide transition-all duration-300 flex items-center justify-center gap-2 ${!isUpdatingPin && newPin && confirmPin && newPin.length === 6 && confirmPin.length === 6
+                      ? 'bg-zinc-900 dark:bg-white text-white dark:text-black hover:bg-zinc-800 dark:hover:bg-zinc-200 shadow-lg shadow-zinc-900/10 dark:shadow-white/10 transform hover:-translate-y-0.5'
+                      : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 cursor-not-allowed'
+                      }`}
+                  >
+                    {isUpdatingPin ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        GÜNCELLENİYOR...
+                      </>
+                    ) : (
+                      'PIN GÜNCELLE'
+                    )}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         );
     }

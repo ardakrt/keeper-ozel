@@ -170,7 +170,7 @@ export default function AuthenticatorPageManager({ otpCodes }: AuthenticatorPage
                     Henüz 2FA kodunuz yok
                   </h2>
                   <p className="text-sm text-white/60 dark:text-white/60 light:text-zinc-500 mb-6 max-w-md">
-                    Google Authenticator'daki tüm kodlarınızı tek QR ile ekleyin
+                    Google Authenticator&apos;daki tüm kodlarınızı tek QR ile ekleyin
                   </p>
                   <button
                     onClick={() => setView("import")}
@@ -222,9 +222,11 @@ export default function AuthenticatorPageManager({ otpCodes }: AuthenticatorPage
                           </div>
                         ) : secret ? (
                           <TOTPCodeDisplay
+                            id={code.id}
                             secret={secret}
                             serviceName={code.service_name}
                             accountName={code.account_name || undefined}
+                            issuer={code.issuer || undefined}
                             algorithm={code.algorithm as "SHA1" | "SHA256" | "SHA512"}
                             digits={code.digits}
                             period={code.period}

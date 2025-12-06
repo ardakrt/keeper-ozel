@@ -8,6 +8,8 @@ import Image from "next/image";
 import { motion } from "framer-motion";
 import AuthContainer from "@/components/AuthContainer";
 
+import { preloadUserData } from "@/app/actions/preload";
+
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -53,8 +55,12 @@ export default function LoginPage() {
             }
 
             if (data.session) {
-              console.log("✅ Session set successfully, redirecting to dashboard...");
+              console.log("✅ Session set successfully, preloading data...");
+              
+              // Start preloading data immediately (fire and forget)
+              preloadUserData(data.session.user.id);
 
+              console.log("✅ Redirecting to dashboard...");
               // Clear the hash from URL
               window.location.hash = '';
 
@@ -79,7 +85,10 @@ export default function LoginPage() {
           } = await supabase.auth.getSession();
 
           if (session) {
-            console.log("✅ Existing session found, redirecting to dashboard...");
+            console.log("✅ Existing session found, preloading & redirecting...");
+            // Preload data for existing session
+            preloadUserData(session.user.id);
+            
             router.push("/dashboard");
             router.refresh();
           } else {
@@ -113,7 +122,7 @@ export default function LoginPage() {
 
     // TODO: Validate PIN with your backend
     // For now, simulate authentication
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email: lockedUser.email,
       password: pin, // In real app, you'd validate PIN separately
     });
@@ -122,6 +131,11 @@ export default function LoginPage() {
       setPinError(true);
       setPin("");
       return;
+    }
+
+    if (data.user) {
+      // Start preloading
+      preloadUserData(data.user.id);
     }
 
     // Clear locked user and redirect
@@ -258,7 +272,7 @@ export default function LoginPage() {
                 className="w-full rounded-3xl border border-white/10 dark:border-white/10 light:border-zinc-200 bg-black/20 dark:bg-black/20 light:bg-white backdrop-blur-sm p-8 shadow-2xl"
               >
                 <div className="flex flex-col items-center">
-                  <p className="text-zinc-300 dark:text-zinc-300 light:text-zinc-600 text-sm mb-6">PIN'inizi girin</p>
+                  <p className="text-zinc-300 dark:text-zinc-300 light:text-zinc-600 text-sm mb-6">PIN&apos;inizi girin</p>
 
                   {/* PIN Input Boxes */}
                   <div className="flex gap-3 mb-6">

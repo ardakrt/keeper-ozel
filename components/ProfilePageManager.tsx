@@ -5,6 +5,7 @@ import ProfileMenu from "@/components/ProfileMenu";
 import UpdateNameForm from "@/components/UpdateNameForm";
 import UpdateEmailForm from "@/components/UpdateEmailForm";
 import UpdatePasswordForm from "@/components/UpdatePasswordForm";
+import UpdatePinForm from "@/components/UpdatePinForm";
 
 interface ProfilePageManagerProps {
   user: any;
@@ -12,7 +13,7 @@ interface ProfilePageManagerProps {
 }
 
 export default function ProfilePageManager({ user, onRefresh }: ProfilePageManagerProps) {
-  const [view, setView] = useState<"menu" | "name" | "email" | "password">("menu");
+  const [view, setView] = useState<"menu" | "name" | "email" | "password" | "pin">("menu");
 
   return (
     <div className="max-w-2xl mx-auto px-6 py-8 bg-transparent">
@@ -30,6 +31,9 @@ export default function ProfilePageManager({ user, onRefresh }: ProfilePageManag
       )}
       {view === "password" && (
         <UpdatePasswordForm onBack={() => setView("menu")} />
+      )}
+      {view === "pin" && (
+        <UpdatePinForm onBack={() => setView("menu")} />
       )}
     </div>
   );

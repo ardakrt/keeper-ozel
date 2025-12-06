@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { deleteReminder, updateReminder } from "@/app/actions";
+import { invalidateCache } from "@/components/DataPreloader";
 
 type Reminder = {
   id?: string | number;
@@ -53,6 +54,7 @@ export default function ReminderItem({ reminder, onRefresh }: { reminder: Remind
     const formData = new FormData();
     formData.append("id", String(reminder.id ?? ""));
     await deleteReminder(formData);
+    invalidateCache("reminders");
     if (onRefresh) {
       onRefresh();
     }
@@ -82,6 +84,7 @@ export default function ReminderItem({ reminder, onRefresh }: { reminder: Remind
           action={(formData) => {
             startTransition(async () => {
               await updateReminder(formData as FormData);
+              invalidateCache("reminders");
               setIsEditing(false);
               if (onRefresh) {
                 onRefresh();

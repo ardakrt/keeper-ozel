@@ -8,7 +8,7 @@ import AddFinanceModal from "@/components/finance/AddFinanceModal";
 import AddLoanModal from "@/components/finance/AddLoanModal";
 import { CreditCard, AlertCircle, X } from "lucide-react";
 import { createBrowserClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 type TabType = "subscriptions" | "loans";
 
@@ -22,6 +22,7 @@ export default function SubscriptionsPage() {
   const [deletingItem, setDeletingItem] = useState<any | null>(null);
   const supabase = createBrowserClient();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   // Filter data based on active tab
   const filteredData = useMemo(() => {
@@ -44,6 +45,18 @@ export default function SubscriptionsPage() {
   const getAddButtonText = () => {
     return activeTab === "subscriptions" ? "Yeni Abonelik Ekle" : "Yeni Kredi Ekle";
   };
+
+  // Handle URL actions
+  useEffect(() => {
+    const action = searchParams.get('action');
+    if (action === 'new-subscription') {
+      setActiveTab('subscriptions');
+      setCurrentView('create');
+    } else if (action === 'new-loan') {
+      setActiveTab('loans');
+      setCurrentView('create');
+    }
+  }, [searchParams]);
 
   // Load subscriptions from database
   useEffect(() => {

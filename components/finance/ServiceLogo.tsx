@@ -92,10 +92,10 @@ export default function ServiceLogo({ brand, fallbackText, size = "md", classNam
   }
 
   // --- BRANDFETCH CDN RENDER ---
-  if (brand.type === "brandfetch" && brand.domain && !imgError) {
+  if (brand.type === "brandfetch" && (brand.domain || brand.iconUrl) && !imgError) {
     // Brandfetch CDN URL
     // c=1idHS4FIS8wG7IAYxk8 parametresi public bir client ID gibi davranır, dokümantasyondaki örnekten alındı.
-    const logoUrl = `https://cdn.brandfetch.io/${brand.domain}?c=1idHS4FIS8wG7IAYxk8`;
+    const logoUrl = brand.iconUrl || `https://cdn.brandfetch.io/${brand.domain}?c=1idHS4FIS8wG7IAYxk8`;
 
     return (
       <div className={`rounded-xl flex items-center justify-center bg-white shadow-sm p-1.5 relative overflow-hidden border border-zinc-100 dark:border-white/10 ${sizeClasses[size]} ${className}`}>

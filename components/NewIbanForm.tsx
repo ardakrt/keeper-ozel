@@ -1,7 +1,9 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { createIban } from "@/app/actions";
+import ServiceLogo from "@/components/finance/ServiceLogo";
+import { getBankInfo } from "@/lib/serviceIcons";
 
 interface NewIbanFormProps {
   onIbanCreated?: () => void;
@@ -10,6 +12,7 @@ interface NewIbanFormProps {
 
 export default function NewIbanForm({ onIbanCreated, onCancel }: NewIbanFormProps) {
   const [isPending, startTransition] = useTransition();
+  const [label, setLabel] = useState("");
 
   return (
     <form
@@ -38,15 +41,27 @@ export default function NewIbanForm({ onIbanCreated, onCancel }: NewIbanFormProp
           <label htmlFor="label" className="block text-zinc-400 dark:text-zinc-400 light:text-zinc-600 dark:text-zinc-400 dark:text-zinc-400 light:text-zinc-600 light:text-zinc-600 text-xs uppercase tracking-wider font-semibold ml-1 mb-2">
             Etiket / Banka Adı
           </label>
-          <input
-            id="label"
-            name="label"
-            type="text"
-            autoComplete="off"
-            className="w-full h-12 px-4 rounded-xl bg-white border border-zinc-200 text-black placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-black focus:border-black dark:bg-white/5 dark:border-white/10 dark:text-white"
-            placeholder="Örn: İş Bankası Maaş Hesabı"
-            required
-          />
+          <div className="relative">
+            <input
+              id="label"
+              name="label"
+              type="text"
+              autoComplete="off"
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              className="w-full h-12 px-4 rounded-xl bg-white border border-zinc-200 text-black placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-black focus:border-black dark:bg-white/5 dark:border-white/10 dark:text-white pl-16"
+              placeholder="Örn: İş Bankası Maaş Hesabı"
+              required
+            />
+            <div className="absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none">
+               <ServiceLogo 
+                 brand={getBankInfo(label)} 
+                 fallbackText={label} 
+                 size="md"
+                 className="bg-transparent border-none shadow-none scale-75"
+               />
+            </div>
+          </div>
         </div>
 
         {/* Ad Soyad */}

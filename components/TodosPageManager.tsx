@@ -1,45 +1,27 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { createBrowserClient } from "@/lib/supabase/client";
 import {
-  Plus, Calendar, Trash2, CheckCircle2, Clock,
-  AlertTriangle, GripVertical, MoreHorizontal,
-  Target
+  Plus, Calendar, Trash2, CheckCircle2, Circle, Search,
+  Clock, Sparkles, LayoutList, Grid3X3,
+  Edit3, GripVertical, X, ArrowUp, ArrowDown
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-hot-toast";
-import { format } from "date-fns";
+import { format, isToday, isTomorrow, isPast, isThisWeek } from "date-fns";
 import { tr } from "date-fns/locale";
-
-import {
-  DndContext,
-  DragOverlay,
-  closestCorners,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragStartEvent,
-  DragEndEvent,
-  useDroppable,
-} from '@dnd-kit/core';
-import {
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-  useSortable,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 
 type Todo = {
   id: string;
   title: string;
-  description: string;
+  description?: string;
   status: 'todo' | 'in_progress' | 'done';
   priority: 'low' | 'medium' | 'high';
   due_date: string | null;
   created_at?: string;
+  user_id?: string;
+  sort_order?: number;
 };
 
 interface TodosPageManagerProps {
@@ -47,41 +29,57 @@ interface TodosPageManagerProps {
   onRefresh?: () => void;
 }
 
-// --- TODO ITEM ---
-function TodoItem({ 
+// Priority config
+const priorityConfig = {
+  high: { label: 'Yüksek', color: 'text-rose-500', bg: 'bg-rose-500/10', border: 'border-rose-500/30', dot: 'bg-rose-500' },
+  medium: { label: 'Orta', color: 'text-amber-500', bg: 'bg-amber-500/10', border: 'border-amber-500/30', dot: 'bg-amber-500' },
+  low: { label: 'Düşük', color: 'text-sky-500', bg: 'bg-sky-500/10', border: 'border-sky-500/30', dot: 'bg-sky-500' },
+};
+
+// Smart date display
+const getSmartDate = (dateStr: string | null) => {
+  if (!dateStr) return null;
+  const date = new Date(dateStr);
+  if (isToday(date)) return { text: 'Bugün', className: 'text-emerald-500' };
+  if (isTomorrow(date)) return { text: 'Yarın', className: 'text-blue-500' };
+  if (isPast(date)) return { text: format(date, 'd MMM', { locale: tr }), className: 'text-rose-500' };
+  if (isThisWeek(date)) return { text: format(date, 'EEEE', { locale: tr }), className: 'text-zinc-400' };
+  return { text: format(date, 'd MMM', { locale: tr }), className: 'text-zinc-400' };
+};
+
+// Todo Item for List View
+function TodoListItem({ 
   todo, 
+  index,
+  totalCount,
+  onToggle, 
   onDelete, 
   onUpdate,
-  onStatusChange
+  onMoveUp,
+  onMoveDown
 }: { 
   todo: Todo; 
+  index: number;
+  totalCount: number;
+  onToggle: () => void;
   onDelete: () => void;
   onUpdate: (updates: Partial<Todo>) => void;
-  onStatusChange: (status: Todo['status']) => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(todo.title);
-  const [showMenu, setShowMenu] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: todo.id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
+  
+  const isDone = todo.status === 'done';
+  const isOverdue = todo.due_date && isPast(new Date(todo.due_date)) && !isDone;
+  const smartDate = getSmartDate(todo.due_date);
+  const priority = priorityConfig[todo.priority];
 
   useEffect(() => {
-    if (isEditing && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
+    if (isEditing) {
+      inputRef.current?.focus();
+      inputRef.current?.select();
     }
   }, [isEditing]);
 
@@ -94,585 +92,653 @@ function TodoItem({
     setIsEditing(false);
   };
 
-  const getPriorityColor = (p: string) => {
-    if (p === 'high') return 'bg-rose-500';
-    if (p === 'medium') return 'bg-amber-500';
-    return 'bg-sky-500';
-  };
-
-  const isOverdue = todo.due_date && new Date(todo.due_date) < new Date() && todo.status !== 'done';
-
   return (
     <motion.div
-      ref={setNodeRef}
-      style={style}
       layout
-      initial={{ opacity: 0, y: -10 }}
-      animate={{ opacity: isDragging ? 0.5 : 1, y: 0 }}
-      exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-      className={`group bg-white dark:bg-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700/50 hover:border-zinc-300 dark:hover:border-zinc-600 transition-all ${
-        isDragging ? 'shadow-xl ring-2 ring-emerald-500/30' : 'shadow-sm hover:shadow-md'
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, x: -100 }}
+      className={`group flex items-center gap-3 p-4 rounded-xl border transition-all ${
+        isDone 
+          ? 'bg-zinc-900/20 border-zinc-800/50' 
+          : isOverdue
+            ? 'bg-rose-500/5 border-rose-500/20 hover:border-rose-500/40'
+            : 'bg-zinc-900/40 border-zinc-800 hover:border-zinc-700'
       }`}
     >
-      <div className="flex items-start gap-2 p-3">
-        {/* Drag Handle */}
+      {/* Move Buttons */}
+      <div className="flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
         <button
-          {...attributes}
-          {...listeners}
-          className="mt-0.5 cursor-grab active:cursor-grabbing p-1 -ml-1 rounded opacity-0 group-hover:opacity-100 hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-400 transition-all"
+          onClick={onMoveUp}
+          disabled={index === 0}
+          className="p-1 rounded hover:bg-zinc-800 text-zinc-500 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+          title="Yukarı taşı"
         >
-          <GripVertical className="w-4 h-4" />
+          <ArrowUp className="w-3.5 h-3.5" />
         </button>
-
-        {/* Checkbox */}
         <button
-          onClick={() => onStatusChange(todo.status === 'done' ? 'todo' : 'done')}
-          className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
-            todo.status === 'done'
-              ? 'bg-emerald-500 border-emerald-500 text-white'
-              : 'border-zinc-300 dark:border-zinc-600 hover:border-emerald-500 dark:hover:border-emerald-500'
-          }`}
+          onClick={onMoveDown}
+          disabled={index === totalCount - 1}
+          className="p-1 rounded hover:bg-zinc-800 text-zinc-500 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+          title="Aşağı taşı"
         >
-          {todo.status === 'done' && <CheckCircle2 className="w-3 h-3" />}
+          <ArrowDown className="w-3.5 h-3.5" />
         </button>
+      </div>
 
-        {/* Content */}
-        <div className="flex-1 min-w-0">
-          {isEditing ? (
-            <input
-              ref={inputRef}
-              type="text"
-              value={editTitle}
-              onChange={(e) => setEditTitle(e.target.value)}
-              onBlur={handleSave}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleSave();
-                if (e.key === 'Escape') {
-                  setEditTitle(todo.title);
-                  setIsEditing(false);
-                }
-              }}
-              className="w-full bg-transparent text-zinc-900 dark:text-white text-sm font-medium focus:outline-none"
-            />
-          ) : (
-            <p
-              onClick={() => setIsEditing(true)}
-              className={`text-sm font-medium cursor-text ${
-                todo.status === 'done'
-                  ? 'text-zinc-400 dark:text-zinc-500 line-through'
-                  : 'text-zinc-900 dark:text-white'
-              }`}
-            >
-              {todo.title}
-            </p>
-          )}
+      {/* Checkbox */}
+      <button
+        onClick={onToggle}
+        className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
+          isDone
+            ? 'bg-emerald-500 border-emerald-500'
+            : 'border-zinc-600 hover:border-emerald-500 hover:bg-emerald-500/10'
+        }`}
+      >
+        {isDone ? (
+          <CheckCircle2 className="w-4 h-4 text-white" />
+        ) : (
+          <Circle className="w-4 h-4 text-transparent group-hover:text-emerald-500/50" />
+        )}
+      </button>
 
-          {/* Meta */}
-          <div className="flex items-center gap-2 mt-1.5">
-            {/* Priority */}
-            <span className={`w-2 h-2 rounded-full ${getPriorityColor(todo.priority)}`} />
-            
-            {/* Due Date */}
-            {todo.due_date && (
-              <span className={`text-xs flex items-center gap-1 ${
-                isOverdue ? 'text-rose-500' : 'text-zinc-400 dark:text-zinc-500'
-              }`}>
-                <Calendar className="w-3 h-3" />
-                {format(new Date(todo.due_date), 'd MMM', { locale: tr })}
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="relative">
-          <button
-            onClick={() => setShowMenu(!showMenu)}
-            className="p-1.5 rounded-md opacity-0 group-hover:opacity-100 hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-400 transition-all"
+      {/* Content */}
+      <div className="flex-1 min-w-0">
+        {isEditing ? (
+          <input
+            ref={inputRef}
+            type="text"
+            value={editTitle}
+            onChange={(e) => setEditTitle(e.target.value)}
+            onBlur={handleSave}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleSave();
+              if (e.key === 'Escape') { setEditTitle(todo.title); setIsEditing(false); }
+            }}
+            className="w-full bg-transparent text-white font-medium focus:outline-none border-b border-emerald-500 pb-1"
+          />
+        ) : (
+          <p
+            onClick={() => !isDone && setIsEditing(true)}
+            className={`font-medium truncate cursor-text ${
+              isDone ? 'line-through text-zinc-500' : 'text-white'
+            }`}
           >
-            <MoreHorizontal className="w-4 h-4" />
-          </button>
+            {todo.title}
+          </p>
+        )}
 
-          {/* Dropdown Menu */}
-          <AnimatePresence>
-            {showMenu && (
-              <>
-                <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95, y: -5 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, y: -5 }}
-                  className="absolute right-0 top-8 z-20 w-48 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-xl py-1"
-                >
-                  <button
-                    onClick={() => { onStatusChange('todo'); setShowMenu(false); }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700/50"
-                  >
-                    <Target className="w-4 h-4 text-amber-500" />
-                    Yapılacak
-                  </button>
-                  <button
-                    onClick={() => { onStatusChange('in_progress'); setShowMenu(false); }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700/50"
-                  >
-                    <Clock className="w-4 h-4 text-blue-500" />
-                    Devam Ediyor
-                  </button>
-                  <button
-                    onClick={() => { onStatusChange('done'); setShowMenu(false); }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700/50"
-                  >
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                    Tamamlandı
-                  </button>
-                  <div className="border-t border-zinc-100 dark:border-zinc-700 my-1" />
-                  <button
-                    onClick={() => { onDelete(); setShowMenu(false); }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    Sil
-                  </button>
-                </motion.div>
-              </>
-            )}
-          </AnimatePresence>
+        {/* Meta row */}
+        <div className="flex items-center gap-3 mt-1.5">
+          <span className={`text-xs px-2 py-0.5 rounded-full ${priority.bg} ${priority.color} ${priority.border} border`}>
+            {priority.label}
+          </span>
+          {smartDate && (
+            <span className={`text-xs flex items-center gap-1 ${smartDate.className}`}>
+              <Clock className="w-3 h-3" />
+              {smartDate.text}
+            </span>
+          )}
         </div>
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          onClick={() => setIsEditing(true)}
+          className="p-2 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition-all"
+        >
+          <Edit3 className="w-4 h-4" />
+        </button>
+        <button
+          onClick={onDelete}
+          className="p-2 rounded-lg hover:bg-red-500/10 text-zinc-400 hover:text-red-400 transition-all"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
       </div>
     </motion.div>
   );
 }
 
-// --- INLINE ADD FORM ---
-function InlineAddForm({ 
-  status, 
-  onAdd, 
-  onCancel 
+// Todo Item for Grid View
+function TodoGridItem({ 
+  todo, 
+  index,
+  totalCount,
+  onToggle, 
+  onDelete,
+  onMoveUp,
+  onMoveDown
 }: { 
-  status: string; 
-  onAdd: (title: string, priority: string) => void;
-  onCancel: () => void;
+  todo: Todo; 
+  index: number;
+  totalCount: number;
+  onToggle: () => void;
+  onDelete: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
 }) {
+  const isDone = todo.status === 'done';
+  const smartDate = getSmartDate(todo.due_date);
+  const priority = priorityConfig[todo.priority];
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.9 }}
+      className={`group relative p-4 rounded-2xl border transition-all h-full ${
+        isDone 
+          ? 'bg-zinc-900/30 border-zinc-800 opacity-60' 
+          : 'bg-zinc-900/50 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900/70'
+      }`}
+    >
+      {/* Move Buttons */}
+      <div className="absolute top-3 left-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          onClick={onMoveUp}
+          disabled={index === 0}
+          className="p-1 rounded hover:bg-zinc-800 text-zinc-500 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+          title="Yukarı taşı"
+        >
+          <ArrowUp className="w-3 h-3" />
+        </button>
+        <button
+          onClick={onMoveDown}
+          disabled={index === totalCount - 1}
+          className="p-1 rounded hover:bg-zinc-800 text-zinc-500 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+          title="Aşağı taşı"
+        >
+          <ArrowDown className="w-3 h-3" />
+        </button>
+      </div>
+
+      {/* Priority indicator */}
+      <div className={`absolute top-3 right-3 w-2.5 h-2.5 rounded-full ${priority.dot}`} />
+      
+      {/* Checkbox */}
+      <button
+        onClick={onToggle}
+        className={`mb-3 mt-1 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
+          isDone
+            ? 'bg-emerald-500 border-emerald-500'
+            : 'border-zinc-600 hover:border-emerald-500'
+        }`}
+      >
+        {isDone && <CheckCircle2 className="w-4 h-4 text-white" />}
+      </button>
+
+      {/* Title */}
+      <h3 className={`font-medium mb-2 pr-4 line-clamp-2 ${isDone ? 'line-through text-zinc-500' : 'text-white'}`}>
+        {todo.title}
+      </h3>
+
+      {/* Meta */}
+      <div className="flex items-center justify-between mt-auto">
+        {smartDate && (
+          <div className={`text-xs flex items-center gap-1.5 ${smartDate.className}`}>
+            <Calendar className="w-3.5 h-3.5" />
+            {smartDate.text}
+          </div>
+        )}
+        
+        {/* Delete button */}
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-red-500/10 text-zinc-500 hover:text-red-400 transition-all ml-auto"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      </div>
+    </motion.div>
+  );
+}
+
+// Quick Add Component
+function QuickAdd({ onAdd }: { onAdd: (title: string, priority: Todo['priority']) => void }) {
   const [title, setTitle] = useState('');
-  const [priority, setPriority] = useState('medium');
+  const [priority, setPriority] = useState<Todo['priority']>('medium');
+  const [isExpanded, setIsExpanded] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim()) return;
+    onAdd(title.trim(), priority);
+    setTitle('');
+    setPriority('medium');
+    setIsExpanded(false);
+  };
 
-  const handleSubmit = () => {
-    if (title.trim()) {
-      onAdd(title.trim(), priority);
-      setTitle('');
-      setPriority('medium');
+  const handleCancel = () => {
+    setTitle('');
+    setPriority('medium');
+    setIsExpanded(false);
+    inputRef.current?.blur();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      handleCancel();
     }
   };
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: -10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
+      layout
+      className={`rounded-2xl border transition-all ${
+        isExpanded 
+          ? 'bg-zinc-900/60 border-emerald-500/30' 
+          : 'bg-zinc-900/40 border-zinc-800 hover:border-zinc-700'
+      }`}
     >
-      <div className="bg-white dark:bg-zinc-800/80 rounded-lg border-2 border-emerald-500/50 shadow-lg shadow-emerald-500/10 p-3">
-        {/* Priority Selector - Moved to top */}
-        <div className="flex items-center gap-2 mb-3">
-          <span className="text-xs text-zinc-500">Öncelik:</span>
-          <div className="flex items-center gap-1">
-            {[
-              { value: 'low', label: 'Normal', color: 'bg-sky-500', ring: 'ring-sky-500' },
-              { value: 'medium', label: 'Orta', color: 'bg-amber-500', ring: 'ring-amber-500' },
-              { value: 'high', label: 'Acil', color: 'bg-rose-500', ring: 'ring-rose-500' }
-            ].map((p) => (
-              <button
-                key={p.value}
-                type="button"
-                onClick={() => setPriority(p.value)}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
-                  priority === p.value
-                    ? `${p.color} text-white shadow-sm`
-                    : 'bg-zinc-100 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-600'
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
+      <form onSubmit={handleSubmit}>
+        <div className="flex items-center gap-3 p-4">
+          <div className={`w-6 h-6 rounded-full border-2 border-dashed flex items-center justify-center transition-colors ${
+            isExpanded ? 'border-emerald-500 text-emerald-500' : 'border-zinc-600 text-zinc-600'
+          }`}>
+            <Plus className="w-4 h-4" />
           </div>
-        </div>
+          
+          <input
+            ref={inputRef}
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onFocus={() => setIsExpanded(true)}
+            onKeyDown={handleKeyDown}
+            placeholder="Yeni görev ekle..."
+            className="flex-1 bg-transparent text-white placeholder:text-zinc-500 focus:outline-none"
+          />
 
-        <input
-          ref={inputRef}
-          type="text"
-          placeholder="Görev adı yazın..."
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && title.trim()) handleSubmit();
-            if (e.key === 'Escape') onCancel();
-          }}
-          className="w-full bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-zinc-900 dark:text-white text-sm placeholder:text-zinc-400 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 mb-3"
-        />
+          {isExpanded && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="flex items-center gap-2"
+            >
+              {/* Priority selector */}
+              <div className="flex items-center gap-1 bg-zinc-800 rounded-lg p-1">
+                {(['low', 'medium', 'high'] as const).map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setPriority(p)}
+                    className={`w-6 h-6 rounded-md flex items-center justify-center transition-all ${
+                      priority === p ? priorityConfig[p].bg : 'hover:bg-zinc-700'
+                    }`}
+                  >
+                    <span className={`w-2 h-2 rounded-full ${priorityConfig[p].dot}`} />
+                  </button>
+                ))}
+              </div>
 
-        {/* Actions */}
-        <div className="flex items-center justify-end gap-2">
-          <button
-            onClick={onCancel}
-            className="px-4 py-2 text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-lg transition-colors"
-          >
-            İptal
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={!title.trim()}
-            className="px-4 py-2 text-xs font-semibold text-white bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors shadow-sm"
-          >
-            Ekle
-          </button>
+              <button
+                type="submit"
+                disabled={!title.trim()}
+                className="px-4 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                Ekle
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition-all"
+                title="İptal (ESC)"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </motion.div>
+          )}
         </div>
-      </div>
+      </form>
+
+      {isExpanded && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          className="px-4 pb-4 border-t border-zinc-800"
+        >
+          <p className="text-xs text-zinc-500 mt-3">
+            💡 Enter ile ekle, ESC ile iptal et
+          </p>
+        </motion.div>
+      )}
     </motion.div>
   );
 }
 
-// --- COLUMN ---
-function Column({
-  title,
-  status,
-  icon: Icon,
-  color,
-  todos,
-  onAddTodo,
-  onDeleteTodo,
-  onUpdateTodo,
-  onStatusChange
-}: {
-  title: string;
-  status: string;
-  icon: any;
+// Stats Card
+function StatsCard({ icon: Icon, label, value, color }: { 
+  icon: React.ElementType; 
+  label: string; 
+  value: number; 
   color: string;
-  todos: Todo[];
-  onAddTodo: (status: string, title: string, priority: string) => void;
-  onDeleteTodo: (id: string) => void;
-  onUpdateTodo: (id: string, updates: Partial<Todo>) => void;
-  onStatusChange: (id: string, status: Todo['status']) => void;
 }) {
-  const [isAdding, setIsAdding] = useState(false);
-  const { setNodeRef, isOver } = useDroppable({ id: status });
-
-  const getColorClasses = () => {
-    if (color === 'amber') return {
-      header: 'text-amber-600 dark:text-amber-400',
-      bg: 'bg-amber-500/10',
-      border: isOver ? 'border-amber-400' : 'border-transparent',
-      count: 'bg-amber-500'
-    };
-    if (color === 'blue') return {
-      header: 'text-blue-600 dark:text-blue-400',
-      bg: 'bg-blue-500/10',
-      border: isOver ? 'border-blue-400' : 'border-transparent',
-      count: 'bg-blue-500'
-    };
-    return {
-      header: 'text-emerald-600 dark:text-emerald-400',
-      bg: 'bg-emerald-500/10',
-      border: isOver ? 'border-emerald-400' : 'border-transparent',
-      count: 'bg-emerald-500'
-    };
-  };
-
-  const colors = getColorClasses();
-
   return (
-    <div
-      ref={setNodeRef}
-      className={`flex-1 min-w-[350px] max-w-[450px] flex flex-col h-full rounded-xl border-2 transition-all duration-200 ${colors.border} ${
-        isOver ? 'bg-zinc-50 dark:bg-zinc-800/50' : 'bg-zinc-50/50 dark:bg-zinc-900/30'
-      }`}
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 pb-3">
-        <div className="flex items-center gap-2.5">
-          <div className={`p-1.5 rounded-lg ${colors.bg}`}>
-            <Icon className={`w-4 h-4 ${colors.header}`} />
-          </div>
-          <h3 className="font-semibold text-zinc-900 dark:text-white text-sm">{title}</h3>
-          <span className={`text-xs font-bold text-white px-2 py-0.5 rounded-full ${colors.count}`}>
-            {todos.length}
-          </span>
-        </div>
-
-        <button
-          onClick={() => setIsAdding(true)}
-          className="p-1.5 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-        </button>
+    <div className="flex items-center gap-3 p-4 rounded-xl bg-zinc-900/40 border border-zinc-800">
+      <div className={`w-10 h-10 rounded-xl ${color} flex items-center justify-center`}>
+        <Icon className="w-5 h-5 text-white" />
       </div>
-
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto px-3 pb-3 space-y-2">
-        <SortableContext items={todos.map(t => t.id)} strategy={verticalListSortingStrategy}>
-          <AnimatePresence mode="popLayout">
-            {todos.map((todo) => (
-              <TodoItem
-                key={todo.id}
-                todo={todo}
-                onDelete={() => onDeleteTodo(todo.id)}
-                onUpdate={(updates) => onUpdateTodo(todo.id, updates)}
-                onStatusChange={(status) => onStatusChange(todo.id, status)}
-              />
-            ))}
-          </AnimatePresence>
-        </SortableContext>
-
-        {/* Inline Add Form */}
-        <AnimatePresence>
-          {isAdding && (
-            <InlineAddForm
-              status={status}
-              onAdd={(title, priority) => {
-                onAddTodo(status, title, priority);
-                setIsAdding(false);
-              }}
-              onCancel={() => setIsAdding(false)}
-            />
-          )}
-        </AnimatePresence>
-
-        {/* Add Button (when not adding) */}
-        {!isAdding && (
-          <button
-            onClick={() => setIsAdding(true)}
-            className="w-full flex items-center justify-center gap-2 p-3 rounded-lg border-2 border-dashed border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600 hover:bg-white dark:hover:bg-zinc-800/50 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-all group"
-          >
-            <Plus className="w-4 h-4 group-hover:scale-110 transition-transform" />
-            <span className="text-sm font-medium">Görev Ekle</span>
-          </button>
-        )}
+      <div>
+        <p className="text-2xl font-bold text-white">{value}</p>
+        <p className="text-xs text-zinc-500">{label}</p>
       </div>
     </div>
   );
 }
 
-// --- MAIN COMPONENT ---
+// Main Component
 export default function TodosPageManager({ todos: initialTodos, onRefresh }: TodosPageManagerProps) {
-  const [todos, setTodos] = useState<Todo[]>(initialTodos || []);
-  const [activeId, setActiveId] = useState<string | null>(null);
-
+  const [todos, setTodos] = useState<Todo[]>(initialTodos);
+  const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const supabase = createBrowserClient();
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  );
-
-  const fetchTodos = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const { data } = await supabase
-      .from('todos')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
-
-    if (data) setTodos(data as Todo[]);
-  };
-
   useEffect(() => {
-    fetchTodos();
-  }, []);
+    setTodos(initialTodos);
+  }, [initialTodos]);
 
   // Stats
-  const todoCount = todos.filter(t => t.status === 'todo').length;
-  const inProgressCount = todos.filter(t => t.status === 'in_progress').length;
-  const doneCount = todos.filter(t => t.status === 'done').length;
+  const stats = useMemo(() => ({
+    total: todos.length,
+    active: todos.filter(t => t.status !== 'done').length,
+    completed: todos.filter(t => t.status === 'done').length,
+    overdue: todos.filter(t => t.due_date && isPast(new Date(t.due_date)) && t.status !== 'done').length,
+  }), [todos]);
 
-  // Handlers
-  const handleAddTodo = async (status: string, title: string, priority: string) => {
+  // Filtered todos (no sorting - user controls order via buttons)
+  const filteredTodos = useMemo(() => {
+    let result = [...todos];
+
+    // Filter
+    if (filter === 'active') result = result.filter(t => t.status !== 'done');
+    if (filter === 'completed') result = result.filter(t => t.status === 'done');
+
+    // Search
+    if (searchQuery) {
+      result = result.filter(t => 
+        t.title.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    return result;
+  }, [todos, filter, searchQuery]);
+
+  // Move item up/down
+  const moveItem = useCallback((id: string, direction: 'up' | 'down') => {
+    setTodos(prev => {
+      const index = prev.findIndex(t => t.id === id);
+      if (index === -1) return prev;
+      
+      const newIndex = direction === 'up' ? index - 1 : index + 1;
+      if (newIndex < 0 || newIndex >= prev.length) return prev;
+      
+      const newTodos = [...prev];
+      [newTodos[index], newTodos[newIndex]] = [newTodos[newIndex], newTodos[index]];
+      return newTodos;
+    });
+  }, []);
+
+  // CRUD Operations
+  const addTodo = async (title: string, priority: Todo['priority']) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const newTodo = {
+    const newTodo: Partial<Todo> = {
       title,
-      description: '',
       priority,
-      due_date: null,
-      status,
-      user_id: user.id
+      status: 'todo',
+      user_id: user.id,
     };
 
-    // Optimistic update
-    const tempId = `temp-${Date.now()}`;
-    setTodos(prev => [{ ...newTodo, id: tempId } as Todo, ...prev]);
-
-    const { data, error } = await supabase.from('todos').insert(newTodo).select().single();
+    const { data, error } = await supabase
+      .from('todos')
+      .insert(newTodo)
+      .select()
+      .single();
 
     if (error) {
       toast.error('Görev eklenemedi');
-      setTodos(prev => prev.filter(t => t.id !== tempId));
-    } else {
-      setTodos(prev => prev.map(t => t.id === tempId ? data : t));
-      toast.success('Görev eklendi');
+      return;
+    }
+
+    setTodos(prev => [data, ...prev]);
+    toast.success('Görev eklendi');
+  };
+
+  const toggleTodo = async (id: string) => {
+    const todo = todos.find(t => t.id === id);
+    if (!todo) return;
+
+    const newStatus = todo.status === 'done' ? 'todo' : 'done';
+    
+    // Optimistic update
+    setTodos(prev => prev.map(t => t.id === id ? { ...t, status: newStatus } : t));
+    
+    const { error } = await supabase
+      .from('todos')
+      .update({ status: newStatus })
+      .eq('id', id);
+
+    if (error) {
+      // Revert on error
+      setTodos(prev => prev.map(t => t.id === id ? { ...t, status: todo.status } : t));
+      toast.error('Güncellenemedi');
+      return;
+    }
+    
+    if (newStatus === 'done') {
+      toast.success('Tamamlandı! 🎉');
     }
   };
 
-  const handleDeleteTodo = async (id: string) => {
+  const updateTodo = async (id: string, updates: Partial<Todo>) => {
+    const { error } = await supabase
+      .from('todos')
+      .update(updates)
+      .eq('id', id);
+
+    if (error) {
+      toast.error('Güncellenemedi');
+      return;
+    }
+
+    setTodos(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
+  };
+
+  const deleteTodo = async (id: string) => {
+    // Optimistic delete
+    const deletedTodo = todos.find(t => t.id === id);
     setTodos(prev => prev.filter(t => t.id !== id));
-    await supabase.from('todos').delete().eq('id', id);
+
+    const { error } = await supabase
+      .from('todos')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      // Revert on error
+      if (deletedTodo) setTodos(prev => [...prev, deletedTodo]);
+      toast.error('Silinemedi');
+      return;
+    }
+
     toast.success('Görev silindi');
   };
 
-  const handleUpdateTodo = async (id: string, updates: Partial<Todo>) => {
-    setTodos(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
-    await supabase.from('todos').update(updates).eq('id', id);
-  };
+  const clearCompleted = async () => {
+    const completedIds = todos.filter(t => t.status === 'done').map(t => t.id);
+    if (completedIds.length === 0) return;
 
-  const handleStatusChange = async (id: string, status: Todo['status']) => {
-    setTodos(prev => prev.map(t => t.id === id ? { ...t, status } : t));
-    await supabase.from('todos').update({ status }).eq('id', id);
-    toast.success('Durum güncellendi');
-  };
+    const completedTodos = todos.filter(t => t.status === 'done');
+    setTodos(prev => prev.filter(t => t.status !== 'done'));
 
-  // Drag handlers
-  const handleDragStart = (event: DragStartEvent) => setActiveId(event.active.id as string);
+    const { error } = await supabase
+      .from('todos')
+      .delete()
+      .in('id', completedIds);
 
-  const handleDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event;
-    setActiveId(null);
-    if (!over) return;
-
-    const activeId = active.id as string;
-    const overId = over.id as string;
-    const activeTodo = todos.find(t => t.id === activeId);
-    if (!activeTodo) return;
-
-    const validStatuses = ['todo', 'in_progress', 'done'];
-    let newStatus: string;
-
-    if (validStatuses.includes(overId)) {
-      newStatus = overId;
-    } else {
-      const overTodo = todos.find(t => t.id === overId);
-      newStatus = overTodo?.status || activeTodo.status;
+    if (error) {
+      setTodos(prev => [...prev, ...completedTodos]);
+      toast.error('Silinemedi');
+      return;
     }
 
-    if (newStatus !== activeTodo.status) {
-      handleStatusChange(activeId, newStatus as Todo['status']);
-    }
+    toast.success(`${completedIds.length} görev temizlendi`);
   };
-
-  const todoTodos = todos.filter(t => t.status === 'todo');
-  const inProgressTodos = todos.filter(t => t.status === 'in_progress');
-  const doneTodos = todos.filter(t => t.status === 'done');
-  const activeTodo = activeId ? todos.find(t => t.id === activeId) : null;
 
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-      <div className="w-full h-full flex flex-col">
+    <div className="w-full h-full p-6 overflow-auto">
+      <div className="max-w-5xl mx-auto space-y-6">
+        
         {/* Header */}
-        <div className="flex-shrink-0 px-8 py-6 border-b border-zinc-200 dark:border-zinc-800">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">Görevler</h1>
-              <p className="text-sm text-zinc-500 mt-1">
-                {todos.length} görev · {doneCount} tamamlandı
-              </p>
-            </div>
-
-            {/* Quick Stats */}
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-amber-500" />
-                <span className="text-sm text-zinc-600 dark:text-zinc-400">{todoCount} yapılacak</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-blue-500" />
-                <span className="text-sm text-zinc-600 dark:text-zinc-400">{inProgressCount} devam ediyor</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-emerald-500" />
-                <span className="text-sm text-zinc-600 dark:text-zinc-400">{doneCount} tamamlandı</span>
-              </div>
-            </div>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+              <Sparkles className="w-8 h-8 text-emerald-500" />
+              Görevlerim
+            </h1>
+            <p className="text-zinc-500 mt-1">
+              {stats.active} aktif görev, {stats.completed} tamamlandı
+            </p>
           </div>
 
-          {/* Progress Bar */}
-          {todos.length > 0 && (
-            <div className="mt-4 h-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
-              <div className="h-full flex">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${(doneCount / todos.length) * 100}%` }}
-                  className="bg-emerald-500 h-full"
-                />
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${(inProgressCount / todos.length) * 100}%` }}
-                  className="bg-blue-500 h-full"
-                />
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${(todoCount / todos.length) * 100}%` }}
-                  className="bg-amber-500 h-full"
-                />
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Board */}
-        <div className="flex-1 overflow-x-auto p-6">
-          <div className="flex gap-6 h-full min-w-max">
-            <Column
-              title="Yapılacaklar"
-              status="todo"
-              icon={Target}
-              color="amber"
-              todos={todoTodos}
-              onAddTodo={handleAddTodo}
-              onDeleteTodo={handleDeleteTodo}
-              onUpdateTodo={handleUpdateTodo}
-              onStatusChange={handleStatusChange}
-            />
-            <Column
-              title="Devam Ediyor"
-              status="in_progress"
-              icon={Clock}
-              color="blue"
-              todos={inProgressTodos}
-              onAddTodo={handleAddTodo}
-              onDeleteTodo={handleDeleteTodo}
-              onUpdateTodo={handleUpdateTodo}
-              onStatusChange={handleStatusChange}
-            />
-            <Column
-              title="Tamamlandı"
-              status="done"
-              icon={CheckCircle2}
-              color="emerald"
-              todos={doneTodos}
-              onAddTodo={handleAddTodo}
-              onDeleteTodo={handleDeleteTodo}
-              onUpdateTodo={handleUpdateTodo}
-              onStatusChange={handleStatusChange}
-            />
+          {/* View Toggle */}
+          <div className="flex items-center gap-2 bg-zinc-900/60 rounded-xl p-1 border border-zinc-800">
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-2 rounded-lg transition-all ${
+                viewMode === 'list' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-white'
+              }`}
+            >
+              <LayoutList className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`p-2 rounded-lg transition-all ${
+                viewMode === 'grid' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-white'
+              }`}
+            >
+              <Grid3X3 className="w-5 h-5" />
+            </button>
           </div>
         </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <StatsCard icon={LayoutList} label="Toplam" value={stats.total} color="bg-zinc-700" />
+          <StatsCard icon={Circle} label="Aktif" value={stats.active} color="bg-blue-500" />
+          <StatsCard icon={CheckCircle2} label="Tamamlanan" value={stats.completed} color="bg-emerald-500" />
+          <StatsCard icon={Clock} label="Geciken" value={stats.overdue} color="bg-rose-500" />
+        </div>
+
+        {/* Quick Add */}
+        <QuickAdd onAdd={addTodo} />
+
+        {/* Filters & Search */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+          {/* Search */}
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Görev ara..."
+              className="w-full pl-10 pr-4 py-3 rounded-xl bg-zinc-900/40 border border-zinc-800 text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-700"
+            />
+          </div>
+
+          {/* Filter buttons */}
+          <div className="flex items-center gap-2 bg-zinc-900/40 rounded-xl p-1 border border-zinc-800">
+            {(['all', 'active', 'completed'] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  filter === f 
+                    ? 'bg-emerald-500 text-white' 
+                    : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+                }`}
+              >
+                {f === 'all' ? 'Tümü' : f === 'active' ? 'Aktif' : 'Tamamlanan'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Todo List */}
+        {filteredTodos.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-zinc-900/40 flex items-center justify-center">
+              <CheckCircle2 className="w-10 h-10 text-zinc-600" />
+            </div>
+            <p className="text-zinc-400 text-lg">
+              {searchQuery ? 'Sonuç bulunamadı' : filter === 'completed' ? 'Tamamlanan görev yok' : 'Henüz görev yok'}
+            </p>
+            <p className="text-zinc-600 text-sm mt-1">
+              {!searchQuery && filter === 'all' && 'Yukarıdan yeni görev ekleyebilirsin'}
+            </p>
+          </div>
+        ) : viewMode === 'list' ? (
+          <div className="space-y-3">
+            <AnimatePresence mode="popLayout">
+              {filteredTodos.map((todo, index) => (
+                <TodoListItem
+                  key={todo.id}
+                  todo={todo}
+                  index={index}
+                  totalCount={filteredTodos.length}
+                  onToggle={() => toggleTodo(todo.id)}
+                  onDelete={() => deleteTodo(todo.id)}
+                  onUpdate={(updates) => updateTodo(todo.id, updates)}
+                  onMoveUp={() => moveItem(todo.id, 'up')}
+                  onMoveDown={() => moveItem(todo.id, 'down')}
+                />
+              ))}
+            </AnimatePresence>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <AnimatePresence mode="popLayout">
+              {filteredTodos.map((todo, index) => (
+                <TodoGridItem
+                  key={todo.id}
+                  todo={todo}
+                  index={index}
+                  totalCount={filteredTodos.length}
+                  onToggle={() => toggleTodo(todo.id)}
+                  onDelete={() => deleteTodo(todo.id)}
+                  onMoveUp={() => moveItem(todo.id, 'up')}
+                  onMoveDown={() => moveItem(todo.id, 'down')}
+                />
+              ))}
+            </AnimatePresence>
+          </div>
+        )}
+
+        {/* Footer actions */}
+        {stats.completed > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex justify-center pt-4"
+          >
+            <button
+              onClick={clearCompleted}
+              className="px-4 py-2 rounded-xl text-sm text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 transition-all flex items-center gap-2"
+            >
+              <Trash2 className="w-4 h-4" />
+              Tamamlananları temizle ({stats.completed})
+            </button>
+          </motion.div>
+        )}
       </div>
-
-      {/* Drag Overlay */}
-      <DragOverlay dropAnimation={null}>
-        {activeTodo ? (
-          <div className="bg-white dark:bg-zinc-800 border-2 border-emerald-500 rounded-lg p-3 shadow-2xl cursor-grabbing max-w-[350px]">
-            <div className="flex items-center gap-2">
-              <div className="w-5 h-5 rounded-full border-2 border-zinc-300 dark:border-zinc-600" />
-              <span className="text-zinc-900 dark:text-white font-medium text-sm">{activeTodo.title}</span>
-            </div>
-          </div>
-        ) : null}
-      </DragOverlay>
-    </DndContext>
+    </div>
   );
 }

@@ -113,6 +113,8 @@ export default function CardItem({ card, onRefresh }: { card: CardDisplay; onRef
           throw new Error("Kart kimliği bulunamadı");
         }
         await deleteCard(formData);
+        const { invalidateCache } = await import('@/components/DataPreloader');
+        invalidateCache('cards');
         toast.success("Kart silindi!");
         onRefresh?.();
       } catch (error) {
@@ -343,7 +345,7 @@ export default function CardItem({ card, onRefresh }: { card: CardDisplay; onRef
           {/* Middle Row: Card Number */}
           <div className="mb-6">
             <p className="text-2xl font-mono tracking-widest text-white dark:text-white light:text-zinc-900">
-              •••• •••• •••• {card.last_four ?? "0000"}
+              {card.masked_card_number || `•••• •••• •••• ${card.last_four ?? "0000"}`}
             </p>
           </div>
 

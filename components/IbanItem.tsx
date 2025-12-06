@@ -50,6 +50,8 @@ export default function IbanItem({ iban, onRefresh }: { iban: Iban; onRefresh?: 
           throw new Error("IBAN kimliği bulunamadı");
         }
         await deleteIban(formData);
+        const { invalidateCache } = await import('@/components/DataPreloader');
+        invalidateCache('ibans');
         toast.success("IBAN silindi!");
         if (onRefresh) {
           onRefresh();
