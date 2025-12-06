@@ -66,8 +66,13 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
     if (!user?.email) return;
 
     const toastId = toast.loading("Şifre sıfırlama bağlantısı gönderiliyor...");
+    
+    let siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "").trim();
+    if (siteUrl.endsWith('/')) siteUrl = siteUrl.slice(0, -1);
+    if (!siteUrl) siteUrl = window.location.origin;
+
     const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/update-password`,
+      redirectTo: `${siteUrl}/auth/update-password`,
     });
 
     if (error) {

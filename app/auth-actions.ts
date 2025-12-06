@@ -36,7 +36,10 @@ export async function resetPassword(formData: FormData) {
   const supabase = await createSupabaseServerClient();
   
   // Supabase'in kendi reset password akışını kullanıyoruz
-  let siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "http://localhost:3000";
+  let siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "").trim();
+  if (!siteUrl) {
+    siteUrl = "http://localhost:3000";
+  }
   // Remove trailing slash if exists
   if (siteUrl.endsWith('/')) {
     siteUrl = siteUrl.slice(0, -1);
