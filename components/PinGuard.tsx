@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { User } from "@supabase/supabase-js";
-import { verifyPin, sendPinResetEmail } from "@/app/actions/auth-pin";
+import { verifyPin, sendPinResetEmail, checkPinExists } from "@/app/actions/auth-pin";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
@@ -31,13 +31,30 @@ export default function PinGuard({ children, user }: PinGuardProps) {
   const pinRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
-    // 1. Check session storage
-    const verified = sessionStorage.getItem("pinVerified");
-    if (verified === "true") {
-      setIsVerified(true);
-    }
-    setIsLoading(false);
-  }, []);
+    const checkPin = async () => {
+      // 1. Check session storage
+      const verified = sessionStorage.getItem("pinVerified");
+      if (verified === "true") {
+        setIsVerified(true);
+        setIsLoading(false);
+        return;
+      }
+
+      // 2. Check if user has a PIN
+      if (user) {
+        const { exists } = await checkPinExists();
+        if (!exists) {
+          // PIN yoksa oluşturmaya yönlendir
+          router.push("/auth/update-pin?mode=create");
+          return;
+        }
+      }
+      
+      setIsLoading(false);
+    };
+
+    checkPin();
+  }, [user, router]);
 
   // Focus first input on load
   useEffect(() => {

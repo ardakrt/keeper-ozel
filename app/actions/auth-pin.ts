@@ -57,3 +57,29 @@ export async function sendPinResetEmail(email: string) {
 
   return { success: true, message: "Sıfırlama bağlantısı gönderildi" };
 }
+
+export async function checkPinExists() {
+  const supabase = await createSupabaseServerClient();
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    return { exists: false };
+  }
+
+  try {
+    const { data: pref } = await supabase
+      .from("user_preferences")
+      .select("pin")
+      .eq("user_id", user.id)
+      .single();
+
+    return { exists: !!(pref && pref.pin) };
+  } catch (error) {
+    console.error("PIN kontrol hatası:", error);
+    return { exists: false };
+  }
+}

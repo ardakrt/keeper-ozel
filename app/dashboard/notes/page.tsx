@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, FileText, Search, Trash2, AlertTriangle, X, Loader2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
