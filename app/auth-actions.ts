@@ -105,8 +105,8 @@ export async function signUpUser(formData: FormData) {
         .from("user_preferences")
         .insert({
           user_id: userId,
-          theme_mode_web: "light",
-          theme_mode_mobile: "light",
+          theme_mode_web: "dark",
+          theme_mode_mobile: "dark",
         });
 
       if (prefError) {
