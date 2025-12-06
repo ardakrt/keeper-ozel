@@ -85,7 +85,7 @@ export default function WeatherWidget() {
 
     try {
       setWeatherLoading(true);
-    const searchTerm = location.trim();
+    const searchTerm = citySearch.trim();
       let res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(searchTerm)}&count=5&language=tr&format=json`);
       let data = await res.json();
 
