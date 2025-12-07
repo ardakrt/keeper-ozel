@@ -173,6 +173,14 @@ export default function UpdatePinForm() {
         className="relative z-10 w-full max-w-md bg-white/80 dark:bg-black/40 backdrop-blur-xl rounded-3xl shadow-2xl border border-zinc-200 dark:border-white/10 overflow-hidden"
       >
         <div className="p-10">
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="absolute top-6 left-6 p-2 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors"
+            >
+              <ArrowLeft size={20} />
+            </button>
+          )}
           <div className="flex items-center justify-center mb-8">
             <div className="w-16 h-16 bg-zinc-100 dark:bg-white/5 border border-zinc-200 dark:border-white/10 rounded-2xl flex items-center justify-center shadow-inner">
               <Lock className="w-8 h-8 text-zinc-900 dark:text-white" strokeWidth={1.5} />
