@@ -45,7 +45,7 @@ export default function ResetPasswordForm() {
 
   if (isSuccess) {
     return (
-      <div className="w-full max-w-md mx-auto bg-white dark:bg-zinc-900 rounded-3xl shadow-xl border border-zinc-200 dark:border-white/10 p-8 text-center">
+      <div className="w-full max-w-md mx-auto bg-white/80 dark:bg-black/40 backdrop-blur-xl rounded-3xl shadow-xl border border-zinc-200 dark:border-white/10 p-8 text-center">
         <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
           <CheckCircle2 className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
         </div>
@@ -62,7 +62,7 @@ export default function ResetPasswordForm() {
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="w-full max-w-md mx-auto bg-white dark:bg-zinc-900 rounded-3xl shadow-xl border border-zinc-200 dark:border-white/10 overflow-hidden relative"
+      className="w-full max-w-md mx-auto bg-white/80 dark:bg-black/40 backdrop-blur-xl rounded-3xl shadow-xl border border-zinc-200 dark:border-white/10 overflow-hidden relative"
     >
       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-teal-500" />
       

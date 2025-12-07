@@ -12,10 +12,28 @@ export default async function UpdatePasswordPage(props: { searchParams: Promise<
   }
 
   return (
-    <div className="min-h-screen w-full bg-zinc-50 dark:bg-black flex items-center justify-center p-4">
-      <Suspense fallback={<div className="min-h-screen w-full bg-white dark:bg-black" />}>
-        <ResetPasswordForm />
-      </Suspense>
+    <div className="min-h-screen w-full relative bg-white dark:bg-black overflow-hidden flex items-center justify-center p-4">
+      {/* Light Mode Background */}
+      <div
+        className="absolute inset-0 z-0 dark:hidden"
+        style={{
+          backgroundImage: "radial-gradient(125% 125% at 50% 90%, #ffffff 40%, #10b981 100%)",
+          backgroundSize: "100% 100%",
+        }}
+      />
+      {/* Dark Mode Background */}
+      <div
+        className="absolute inset-0 z-0 hidden dark:block"
+        style={{
+          background: "radial-gradient(150% 150% at 50% 100%, #000000 40%, #299690ff 100%)"
+        }}
+      />
+
+      <div className="relative z-10 w-full max-w-md">
+        <Suspense fallback={<div className="w-full h-96 bg-white/80 dark:bg-black/40 backdrop-blur-xl rounded-3xl animate-pulse" />}>
+          <ResetPasswordForm />
+        </Suspense>
+      </div>
     </div>
   );
 }

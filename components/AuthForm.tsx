@@ -48,6 +48,7 @@ export default function AuthForm({ initialEmail, onStepChange }: AuthFormProps) 
       const res = await resetPassword(formData);
       
       if (res.success) {
+        setForgotPasswordSent(true);
         toast.success("Şifre sıfırlama bağlantısı e-postanıza gönderildi.");
       } else {
         toast.error(res.message || "Sıfırlama bağlantısı gönderilemedi.");
@@ -68,6 +69,7 @@ export default function AuthForm({ initialEmail, onStepChange }: AuthFormProps) 
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<"idle" | "checking" | "success" | "error">("idle");
   const [resendStatus, setResendStatus] = useState<string | null>(null);
+  const [forgotPasswordSent, setForgotPasswordSent] = useState(false);
   
   // 2FA Pin State (Only for Verification Code)
   const [pin, setPin] = useState(["", "", "", "", "", ""]);
@@ -391,6 +393,7 @@ export default function AuthForm({ initialEmail, onStepChange }: AuthFormProps) 
             greeting={getGreeting()}
             status={status}
             error={error}
+            forgotPasswordSent={forgotPasswordSent}
             onLogin={handleLogin}
             onReset={handleReset}
             onForgotPassword={handleForgotPassword}

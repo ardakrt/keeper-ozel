@@ -2,26 +2,10 @@ import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
-import { AlertCircle, Eye, EyeOff } from "lucide-react";
+import { AlertCircle, Eye, EyeOff, CheckCircle2 } from "lucide-react";
 
 interface StepPasswordProps {
-  avatarUrl: string | null;
-  userName: string | null;
-  email: string;
-  greeting: string;
-  status: "idle" | "checking" | "success" | "error";
-  error: string | null;
-  onLogin: (password: string) => void;
-  onReset: () => void;
-  onForgotPassword: () => void;
-  variants: any;
-  itemVariants: any;
-}
-
-function capitalizeFirstLetter(name: string): string {
-  if (!name) return "";
-  return name.charAt(0).toUpperCase() + name.slice(1);
-}
+// ... (interface content is handled in previous call)
 
 export default function StepPassword({
   avatarUrl,
@@ -30,6 +14,7 @@ export default function StepPassword({
   greeting,
   status,
   error,
+  forgotPasswordSent,
   onLogin,
   onReset,
   onForgotPassword,
@@ -51,6 +36,38 @@ export default function StepPassword({
       onLogin(password);
     }
   };
+
+  if (forgotPasswordSent) {
+    return (
+      <motion.div
+        key="forgotSuccess"
+        variants={variants}
+        initial="hidden"
+        animate="visible"
+        exit="exit"
+        className="space-y-6 text-center"
+      >
+        <motion.div variants={itemVariants} className="flex justify-center">
+          <div className="w-24 h-24 bg-emerald-100 dark:bg-emerald-500/20 rounded-full flex items-center justify-center">
+            <CheckCircle2 className="w-12 h-12 text-emerald-600 dark:text-emerald-400" />
+          </div>
+        </motion.div>
+        <motion.div variants={itemVariants} className="space-y-2">
+          <h3 className="text-xl font-semibold text-zinc-900 dark:text-white">E-posta Gönderildi!</h3>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            Şifre sıfırlama bağlantısını <strong>{email}</strong> adresine gönderdik.
+          </p>
+        </motion.div>
+        <motion.button
+          variants={itemVariants}
+          onClick={onReset}
+          className="text-sm text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors underline underline-offset-4"
+        >
+          Giriş ekranına dön
+        </motion.button>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div
