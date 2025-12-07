@@ -51,7 +51,7 @@ export async function sendPinResetEmail(email: string) {
   if (siteUrl.endsWith('/')) siteUrl = siteUrl.slice(0, -1);
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${siteUrl}/auth/update-pin`,
+    redirectTo: `${siteUrl}/auth/callback?next=/auth/update-pin`,
   });
 
   if (error) {
