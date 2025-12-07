@@ -46,9 +46,20 @@ export async function verifyPin(pin: string) {
 export async function sendPinResetEmail(email: string) {
   const supabase = await createSupabaseServerClient();
   
-  let siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "").trim();
-  if (!siteUrl) siteUrl = "http://localhost:3000";
+  let siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+  
+  if (!siteUrl && process.env.NEXT_PUBLIC_VERCEL_URL) {
+    siteUrl = `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`;
+  }
+  
+  if (!siteUrl) {
+    siteUrl = "http://localhost:3000";
+  }
+
+  siteUrl = siteUrl.trim();
   if (siteUrl.endsWith('/')) siteUrl = siteUrl.slice(0, -1);
+
+  console.log("PIN Reset Redirect URL:", `${siteUrl}/auth/callback?next=/auth/update-pin`);
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${siteUrl}/auth/callback?next=/auth/update-pin`,
