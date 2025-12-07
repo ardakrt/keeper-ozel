@@ -1,17 +1,46 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useRef, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Lock, CheckCircle2, AlertCircle } from "lucide-react";
 import { updateUserPin } from "@/app/actions";
+import { createBrowserClient } from "@/lib/supabase/client";
 
-export default function UpdatePinPage() {
+function UpdatePinForm() {
   const [pin, setPin] = useState(["", "", "", "", "", ""]);
   const [confirmPin, setConfirmPin] = useState(["", "", "", "", "", ""]);
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const supabase = createBrowserClient();
+
+  useEffect(() => {
+    const code = searchParams.get("code");
+    if (code) {
+      setIsVerifying(true);
+      const exchangeCode = async () => {
+        try {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) {
+            console.error("Code exchange error:", error);
+            setErrorMessage("Bağlantı geçersiz veya süresi dolmuş.");
+          } else {
+            // Remove code from URL to clean up
+            router.replace("/auth/update-pin");
+          }
+        } catch (e) {
+          console.error("Code exchange exception:", e);
+          setErrorMessage("Kimlik doğrulama hatası.");
+        } finally {
+          setIsVerifying(false);
+        }
+      };
+      exchangeCode();
+    }
+  }, [searchParams, supabase, router]);
 
   // Refs for focus management
   const pinRefs = [
@@ -100,15 +129,12 @@ export default function UpdatePinPage() {
     const formData = new FormData();
     formData.append("new_pin", fullPin);
     formData.append("confirm_pin", fullConfirmPin);
-    // Ekstra parametre: Sadece PIN hash'ini güncelle
     formData.append("update_auth_password", "false");
 
     try {
-      // Server action ile PIN'i güncelle
       await updateUserPin(formData);
       setStatus("success");
       
-      // 2 saniye sonra dashboard'a yönlendir
       setTimeout(() => {
         router.push("/dashboard");
       }, 2000);
@@ -247,10 +273,10 @@ export default function UpdatePinPage() {
 
             <button
               type="submit"
-              disabled={status === "loading" || pin.join("").length !== 6 || confirmPin.join("").length !== 6}
+              disabled={status === "loading" || isVerifying || pin.join("").length !== 6 || confirmPin.join("").length !== 6}
               className="w-full h-12 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-xl font-semibold text-sm tracking-wide shadow-lg shadow-emerald-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center active:scale-[0.98]"
             >
-              {status === "loading" ? (
+              {status === "loading" || isVerifying ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
                 "PIN'i Güncelle"
@@ -260,5 +286,13 @@ export default function UpdatePinPage() {
         </div>
       </motion.div>
     </div>
+  );
+}
+
+export default function UpdatePinPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen w-full bg-white dark:bg-black" />}>
+      <UpdatePinForm />
+    </Suspense>
   );
 }
