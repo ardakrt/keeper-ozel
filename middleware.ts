@@ -20,6 +20,12 @@ export async function middleware(req: NextRequest) {
   const isProtected = ["/dashboard", "/profile", "/settings"].some((p) =>
     pathname.startsWith(p)
   );
+  
+  // Allow update-pin flow to bypass device verification since it comes from email
+  if (pathname.startsWith("/auth/update-pin")) {
+    return res;
+  }
+
   const isAuthPage = pathname === "/login" || pathname === "/register";
 
   if (!session && isProtected) {
