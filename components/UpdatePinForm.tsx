@@ -3,10 +3,14 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Lock, CheckCircle2, AlertCircle } from "lucide-react";
+import { ArrowLeft, Lock, CheckCircle2, AlertCircle } from "lucide-react";
 import { updateUserPin } from "@/app/actions";
 
-export default function UpdatePinForm() {
+interface UpdatePinFormProps {
+  onBack?: () => void;
+}
+
+export default function UpdatePinForm({ onBack }: UpdatePinFormProps) {
   const [pin, setPin] = useState(["", "", "", "", "", ""]);
   const [confirmPin, setConfirmPin] = useState(["", "", "", "", "", ""]);
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
