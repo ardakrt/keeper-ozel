@@ -13,6 +13,7 @@ interface StepPasswordProps {
   error: string | null;
   onLogin: (password: string) => void;
   onReset: () => void;
+  onForgotPassword: () => void;
   variants: any;
   itemVariants: any;
 }
@@ -31,6 +32,7 @@ export default function StepPassword({
   error,
   onLogin,
   onReset,
+  onForgotPassword,
   variants,
   itemVariants
 }: StepPasswordProps) {
@@ -147,9 +149,13 @@ export default function StepPassword({
 
       {/* Forgot Password Link */}
       <motion.div variants={itemVariants} className="text-center">
-        <Link href="/forgot-password" className="text-sm text-zinc-600 hover:text-black dark:text-zinc-400 dark:hover:text-white transition-colors">
+        <button 
+          type="button"
+          onClick={onForgotPassword}
+          className="text-sm text-zinc-600 hover:text-black dark:text-zinc-400 dark:hover:text-white transition-colors"
+        >
           Şifremi unuttum
-        </Link>
+        </button>
       </motion.div>
     </motion.div>
   );

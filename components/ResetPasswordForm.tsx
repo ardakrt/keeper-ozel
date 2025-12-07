@@ -50,7 +50,10 @@ export default function ResetPasswordForm() {
           <CheckCircle2 className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
         </div>
         <h2 className="text-2xl font-bold text-zinc-900 dark:text-white mb-2">Şifre Güncellendi!</h2>
-        <p className="text-zinc-600 dark:text-zinc-400 mb-6">Yeni şifrenizle başarıyla giriş yapıldı. Yönlendiriliyorsunuz...</p>
+        <p className="text-zinc-600 dark:text-zinc-400 mb-6">Yeni şifrenizle başarıyla giriş yapıldı.</p>
+        <div className="p-4 bg-zinc-50 dark:bg-white/5 rounded-xl border border-zinc-200 dark:border-white/10">
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">Bu sayfayı kapatabilir ve uygulamanıza dönebilirsiniz.</p>
+        </div>
       </div>
     );
   }

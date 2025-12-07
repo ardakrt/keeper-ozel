@@ -8,6 +8,39 @@ import { sendVerificationCode, verifyDeviceCode, checkDeviceVerification } from 
 import { useTheme } from "@/contexts/ThemeContext";
 import { usePushLogin } from "@/hooks/usePushLogin";
 import { AnimatePresence } from "framer-motion";
+import { resetPassword } from "@/app/auth-actions";
+import { toast } from "react-hot-toast";
+
+// ... inside AuthForm component ...
+
+  // In render:
+  // Find the "Forgot Password" link. It should be near the password input.
+  // Assuming step === "password" or similar.
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      router.push("/forgot-password");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const formData = new FormData();
+      formData.append("email", email);
+      const res = await resetPassword(formData);
+      
+      if (res.success) {
+        toast.success("Şifre sıfırlama bağlantısı e-postanıza gönderildi.");
+      } else {
+        toast.error(res.message || "Sıfırlama bağlantısı gönderilemedi.");
+      }
+    } catch (e) {
+      toast.error("Bir hata oluştu.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
 
 // Import Refactored Components
 import StepEmail from "./auth/StepEmail";
@@ -361,6 +394,7 @@ export default function AuthForm({ initialEmail, onStepChange }: AuthFormProps) 
             error={error}
             onLogin={handleLogin}
             onReset={handleReset}
+            onForgotPassword={handleForgotPassword}
             variants={containerVariants}
             itemVariants={itemVariants}
           />
