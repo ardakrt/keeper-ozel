@@ -4,6 +4,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { AlertCircle, Eye, EyeOff, CheckCircle2 } from "lucide-react";
 
+function capitalizeFirstLetter(name: string): string {
+  if (!name) return "";
+  return name.charAt(0).toUpperCase() + name.slice(1);
+}
+
 interface StepPasswordProps {
   avatarUrl: string | null;
   userName: string | null;
