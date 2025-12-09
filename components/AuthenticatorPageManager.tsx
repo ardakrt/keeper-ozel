@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { QrCode } from "lucide-react";
+import { QrCode, Shield } from "lucide-react";
 import TOTPCodeDisplay from "./TOTPCodeDisplay";
 import dynamic from "next/dynamic";
 import { revealOTPSecret, deleteOTPCode } from "@/app/actions";
@@ -165,6 +165,9 @@ export default function AuthenticatorPageManager({ otpCodes }: AuthenticatorPage
             <div>
               {otpCodes.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 text-center">
+                  <div className="w-20 h-20 bg-zinc-100 dark:bg-white/5 rounded-full flex items-center justify-center mb-6">
+                    <Shield className="w-10 h-10 text-zinc-400 dark:text-zinc-500" />
+                  </div>
                   <h2 className="text-xl font-semibold text-zinc-900 dark:text-white mb-2">
                     Henüz 2FA kodunuz yok
                   </h2>

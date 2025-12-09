@@ -213,9 +213,8 @@ export default function TaskBoard() {
       newStatus = overTask.status;
     }
 
-    if (newStatus !== activeTask.status) { // Only update DB if status actually changed from start
-       await supabase.from('todos').update({ status: newStatus }).eq('id', activeId);
-    }
+    // Always update status in DB to ensure sync, as local state might have been optimistically updated in DragOver
+    await supabase.from('todos').update({ status: newStatus }).eq('id', activeId);
   };
 
   // Columns filtering

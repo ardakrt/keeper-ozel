@@ -2,13 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useTheme } from "@/contexts/ThemeContext";
-import { X, Palette, Globe, Bell, Shield, Download, Trash2, Lock, KeyRound } from "lucide-react";
+import { X, Palette, Globe, Bell, Shield, Download, Trash2, Lock, KeyRound, AlertCircle } from "lucide-react";
 import { createBrowserClient } from "@/lib/supabase/client";
 import AccentColorPicker from "@/components/AccentColorPicker";
 import { motion } from "framer-motion";
 import { toast } from "react-hot-toast";
-import { sendPinResetEmail } from "@/app/actions/auth-pin";
-
+import { sendPinResetEmail, deleteUserAccount } from "@/app/auth-actions"; // Import deleteUserAccount
 
 interface SettingsModalProps {
   onClose: () => void;
@@ -29,6 +28,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
     profileVisible: true,
     shareData: false,
   });
+  const [deleteConfirm, setDeleteConfirm] = useState(false); // State for delete confirmation modal
   const supabase = createBrowserClient();
 
   const categories = [
@@ -55,9 +55,18 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
   };
 
   const handleDeleteAccount = () => {
-    // TODO: Implement account deletion
-    if (confirm("Hesabınızı silmek istediğinize emin misiniz? Bu işlem geri alınamaz.")) {
-      toast.success("Hesap silme işlemi başlatıldı.");
+    setDeleteConfirm(true); // Open custom confirmation modal
+  };
+
+  const confirmDeleteAccount = async () => {
+    const toastId = toast.loading("Hesap siliniyor...");
+    try {
+      await deleteUserAccount();
+      toast.success("Hesabınız silindi.", { id: toastId });
+      // Redirect handled by server action
+    } catch (error: any) {
+      toast.error("Hesap silinemedi: " + error.message, { id: toastId });
+      setDeleteConfirm(false);
     }
   };
 
@@ -436,6 +445,49 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
           </div>
         </div>
       </motion.div>
+
+      {/* Delete Account Confirmation Modal */}
+      {deleteConfirm && (
+        <div className="absolute inset-0 z-[70] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            className="bg-[#09090b] border border-red-500/20 rounded-2xl p-6 max-w-sm w-full shadow-2xl relative overflow-hidden"
+          >
+            {/* Background Glow */}
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-600 to-orange-600" />
+            <div className="absolute -top-20 -right-20 w-40 h-40 bg-red-500/10 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="relative z-10">
+              <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mb-4 border border-red-500/20">
+                <AlertCircle className="w-6 h-6 text-red-500" />
+              </div>
+
+              <h3 className="text-xl font-bold text-white mb-2">Hesabı Sil</h3>
+              <p className="text-sm text-zinc-400 mb-6 leading-relaxed">
+                Hesabınızı silmek istediğinizden emin misiniz? <br />
+                <span className="text-red-400 font-medium">Bu işlem geri alınamaz</span> ve tüm verileriniz kalıcı olarak silinecektir.
+              </p>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setDeleteConfirm(false)}
+                  className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 transition-colors"
+                >
+                  İptal
+                </button>
+                <button
+                  onClick={confirmDeleteAccount}
+                  className="flex-1 px-4 py-2.5 rounded-xl text-sm font-bold bg-red-600 hover:bg-red-700 text-white transition-colors shadow-lg shadow-red-900/20"
+                >
+                  Hesabı Sil
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </motion.div>
   );
 }

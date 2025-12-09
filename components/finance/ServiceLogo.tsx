@@ -48,7 +48,7 @@ export default function ServiceLogo({ brand, fallbackText, size = "md", classNam
 
     if (!imgError) {
       return (
-        <div className={`rounded-xl flex items-center justify-center bg-white dark:bg-zinc-900 shadow-sm p-1.5 relative overflow-hidden border border-zinc-100 dark:border-white/10 ${sizeClasses[size]} ${className}`}>
+        <div className={`rounded-xl flex items-center justify-center relative overflow-hidden ${sizeClasses[size]} ${className}`}>
           <div className="relative w-full h-full">
               <Image
                 src={theme === "dark" ? discordForDarkMode : discordForLightMode}
@@ -73,7 +73,7 @@ export default function ServiceLogo({ brand, fallbackText, size = "md", classNam
 
     if (!imgError) {
       return (
-        <div className={`rounded-xl flex items-center justify-center bg-white dark:bg-zinc-900 shadow-sm p-1.5 relative overflow-hidden border border-zinc-100 dark:border-white/10 ${sizeClasses[size]} ${className}`}>
+        <div className={`rounded-xl flex items-center justify-center relative overflow-hidden ${sizeClasses[size]} ${className}`}>
           <div className="relative w-full h-full">
               <Image
                 src={theme === "dark" ? binanceDarkMode : binanceLightMode}
@@ -91,6 +91,26 @@ export default function ServiceLogo({ brand, fallbackText, size = "md", classNam
     return renderFallback();
   }
 
+  // Spotify (Transparent SVG fix)
+  if (brand.id === "spotify") {
+    const spotifyLogo = "https://upload.wikimedia.org/wikipedia/commons/1/19/Spotify_logo_without_text.svg";
+    
+    return (
+      <div className={`rounded-xl flex items-center justify-center relative overflow-hidden ${sizeClasses[size]} ${className}`}>
+        <div className="relative w-full h-full">
+            <Image
+              src={spotifyLogo}
+              alt={brand.name}
+              fill
+              className="object-contain"
+              onError={() => setImgError(true)}
+              unoptimized
+            />
+        </div>
+      </div>
+    );
+  }
+
   // --- BRANDFETCH CDN RENDER ---
   if (brand.type === "brandfetch" && (brand.domain || brand.iconUrl) && !imgError) {
     // Brandfetch CDN URL
@@ -98,7 +118,7 @@ export default function ServiceLogo({ brand, fallbackText, size = "md", classNam
     const logoUrl = brand.iconUrl || `https://cdn.brandfetch.io/${brand.domain}?c=1idHS4FIS8wG7IAYxk8`;
 
     return (
-      <div className={`rounded-xl flex items-center justify-center bg-white shadow-sm p-1.5 relative overflow-hidden border border-zinc-100 dark:border-white/10 ${sizeClasses[size]} ${className}`}>
+      <div className={`rounded-xl flex items-center justify-center relative overflow-hidden ${sizeClasses[size]} ${className}`}>
         <div className="relative w-full h-full">
             <Image
               src={logoUrl}

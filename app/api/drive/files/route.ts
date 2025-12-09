@@ -33,7 +33,12 @@ export async function GET(request: Request) {
         .single();
 
     if (!prefs || !prefs.google_access_token) {
-        return NextResponse.json({ error: "Not connected" }, { status: 400 });
+        return NextResponse.json({ 
+            files: [], 
+            storage: null,
+            connected: false,
+            error: "Not connected" 
+        }, { status: 200 });
     }
 
     const oauth2Client = new google.auth.OAuth2(

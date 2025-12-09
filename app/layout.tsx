@@ -7,6 +7,7 @@ import { AccentColorProvider } from "@/contexts/AccentColorContext";
 import { NavigationProvider } from "@/contexts/NavigationContext";
 import "./globals.css";
 import { SpeedInsights } from "@vercel/speed-insights/next"
+import ToastProvider from "@/components/ui/ToastProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -70,6 +71,7 @@ export default async function RootLayout({
             </NavigationProvider>
           </AccentColorProvider>
         </ThemeProvider>
+        <ToastProvider />
         <SpeedInsights />
       </body>
     </html>

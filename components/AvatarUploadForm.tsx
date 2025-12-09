@@ -6,7 +6,7 @@ import { createBrowserClient } from "@/lib/supabase/client";
 import { updateAvatarMetadata } from "@/app/actions";
 import { toast } from "react-hot-toast";
 
-export default function AvatarUploadForm({ currentAvatar, userId, onRefresh }: { currentAvatar: string | undefined | null; userId: string; onRefresh?: () => void }) {
+export default function AvatarUploadForm({ currentAvatar, userId, userName, onRefresh }: { currentAvatar: string | undefined | null; userId: string; userName?: string | null; onRefresh?: () => void }) {
   const supabase = createBrowserClient();
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -40,6 +40,19 @@ export default function AvatarUploadForm({ currentAvatar, userId, onRefresh }: {
       const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
       const publicUrl = urlData.publicUrl;
       await updateAvatarMetadata(publicUrl);
+
+      // Eski resmi sil (Eğer Supabase Storage'daysa)
+      if (currentAvatar && currentAvatar.includes("/storage/v1/object/public/avatars/")) {
+        try {
+          const oldPath = currentAvatar.split("/avatars/")[1];
+          if (oldPath) {
+            await supabase.storage.from("avatars").remove([decodeURIComponent(oldPath)]);
+          }
+        } catch (e) {
+          console.error("Eski avatar silinemedi:", e);
+        }
+      }
+
       toast.success("Profil resmi güncellendi!");
       setFile(null); // Reset file selection
       if (onRefresh) {
@@ -65,21 +78,23 @@ export default function AvatarUploadForm({ currentAvatar, userId, onRefresh }: {
             className="w-full h-full object-cover"
           />
         ) : (
-          <div className="w-full h-full bg-zinc-900 flex items-center justify-center">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="w-16 h-16 text-zinc-600"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-              />
-            </svg>
+          <div className="w-full h-full bg-zinc-900 flex items-center justify-center text-4xl font-bold text-white uppercase">
+            {userName ? userName.charAt(0) : (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="w-16 h-16 text-zinc-600"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                />
+              </svg>
+            )}
           </div>
         )}
 

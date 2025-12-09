@@ -311,8 +311,8 @@ export async function verifyAndCompleteRegistration(
       .from("user_preferences")
       .upsert({
         user_id: userId,
-        theme_mode_web: "light",
-        theme_mode_mobile: "light",
+        theme_mode_web: "dark",
+        theme_mode_mobile: "dark",
       }, { onConflict: "user_id" });
 
     if (prefError) console.error("Tercih oluşturma hatası:", prefError);

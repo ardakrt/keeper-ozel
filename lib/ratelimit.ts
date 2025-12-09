@@ -14,7 +14,7 @@ const redis = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_R
 export const ratelimit = redis
   ? new Ratelimit({
       redis: redis,
-      limiter: Ratelimit.slidingWindow(5, "1 m"),
+      limiter: Ratelimit.slidingWindow(20, "1 m"),
       analytics: true,
       prefix: "@upstash/ratelimit",
     })

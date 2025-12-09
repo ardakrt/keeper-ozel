@@ -243,6 +243,313 @@ const SERVICES: Record<string, BrandInfo> = {
     type: "brandfetch",
     domain: "binance.com",
     colors: { primary: "#F3BA2F", bg: "#000000" }
+  },
+  hepsiburada: {
+    id: "hepsiburada",
+    name: "Hepsiburada",
+    type: "brandfetch",
+    domain: "hepsiburada.com",
+    colors: { primary: "#FF6000", bg: "#ffffff" }
+  },
+  yemeksepeti: {
+    id: "yemeksepeti",
+    name: "Yemeksepeti",
+    type: "brandfetch",
+    domain: "yemeksepeti.com",
+    colors: { primary: "#EA004B", bg: "#ffffff" }
+  },
+  getir: {
+    id: "getir",
+    name: "Getir",
+    type: "brandfetch",
+    domain: "getir.com",
+    colors: { primary: "#5D3EB2", bg: "#ffffff" }
+  },
+  fizy: {
+    id: "fizy",
+    name: "Fizy",
+    type: "brandfetch",
+    domain: "fizy.com",
+    colors: { primary: "#FFD000", bg: "#000000" }
+  },
+  tivibu: {
+    id: "tivibu",
+    name: "Tivibu",
+    type: "brandfetch",
+    domain: "tivibu.com.tr",
+    colors: { primary: "#003D7C", bg: "#ffffff" }
+  },
+  tvplus: {
+    id: "tvplus",
+    name: "TV+",
+    type: "brandfetch",
+    domain: "tvplus.com.tr",
+    colors: { primary: "#FFC400", bg: "#000000" }
+  },
+  dsmart: {
+    id: "dsmart",
+    name: "D-Smart",
+    type: "brandfetch",
+    domain: "dsmart.com.tr",
+    colors: { primary: "#009EE0", bg: "#ffffff" }
+  },
+  storytel: {
+    id: "storytel",
+    name: "Storytel",
+    type: "brandfetch",
+    domain: "storytel.com",
+    colors: { primary: "#FF5B00", bg: "#ffffff" }
+  },
+  marti: {
+    id: "marti",
+    name: "Martı",
+    type: "brandfetch",
+    domain: "marti.tech",
+    colors: { primary: "#2DC48D", bg: "#ffffff" }
+  },
+  trendyol: {
+    id: "trendyol",
+    name: "Trendyol",
+    type: "brandfetch",
+    domain: "trendyol.com",
+    colors: { primary: "#F27A1A", bg: "#ffffff" }
+  },
+  n11: {
+    id: "n11",
+    name: "n11",
+    type: "brandfetch",
+    domain: "n11.com",
+    colors: { primary: "#E30613", bg: "#ffffff" }
+  },
+  migros: {
+    id: "migros",
+    name: "Migros",
+    type: "brandfetch",
+    domain: "migros.com.tr",
+    colors: { primary: "#FF7F00", bg: "#ffffff" }
+  },
+  ytmusic: {
+    id: "ytmusic",
+    name: "YouTube Music",
+    type: "brandfetch",
+    domain: "music.youtube.com",
+    colors: { primary: "#FF0000", bg: "#000000" }
+  },
+  tiktok: {
+    id: "tiktok",
+    name: "TikTok",
+    type: "brandfetch",
+    domain: "tiktok.com",
+    colors: { primary: "#000000", bg: "#ffffff" }
+  },
+  bein: {
+    id: "bein",
+    name: "beIN Connect",
+    type: "brandfetch",
+    domain: "beinconnect.com.tr",
+    colors: { primary: "#582C83", bg: "#ffffff" }
+  },
+  hbomax: {
+    id: "hbomax",
+    name: "HBO Max",
+    type: "brandfetch",
+    domain: "hbomax.com",
+    colors: { primary: "#5600CC", bg: "#000000" }
+  },
+  primevideo: {
+    id: "primevideo",
+    name: "Prime Video",
+    type: "brandfetch",
+    domain: "primevideo.com",
+    colors: { primary: "#00A8E1", bg: "#000000" }
+  },
+  // --- TELEKOM & INTERNET ---
+  turkcell: {
+    id: "turkcell",
+    name: "Turkcell",
+    type: "brandfetch",
+    domain: "turkcell.com.tr",
+    colors: { primary: "#FFC900", bg: "#28303D" }
+  },
+  vodafone: {
+    id: "vodafone",
+    name: "Vodafone",
+    type: "brandfetch",
+    domain: "vodafone.com.tr",
+    colors: { primary: "#E60000", bg: "#ffffff" }
+  },
+  turktelekom: {
+    id: "turktelekom",
+    name: "Türk Telekom",
+    type: "brandfetch",
+    domain: "turktelekom.com.tr",
+    colors: { primary: "#002855", bg: "#ffffff" }
+  },
+  turknet: {
+    id: "turknet",
+    name: "TurkNet",
+    type: "brandfetch",
+    domain: "turk.net",
+    colors: { primary: "#3E43D3", bg: "#ffffff" }
+  },
+  superonline: {
+    id: "superonline",
+    name: "Superonline",
+    type: "brandfetch",
+    domain: "superonline.net",
+    colors: { primary: "#FFC900", bg: "#28303D" }
+  },
+  // --- GAMING ---
+  steam: {
+    id: "steam",
+    name: "Steam",
+    type: "brandfetch",
+    domain: "steampowered.com",
+    colors: { primary: "#171A21", bg: "#ffffff" }
+  },
+  playstation: {
+    id: "playstation",
+    name: "PlayStation",
+    type: "brandfetch",
+    domain: "playstation.com",
+    colors: { primary: "#00439C", bg: "#ffffff" }
+  },
+  xbox: {
+    id: "xbox",
+    name: "Xbox",
+    type: "brandfetch",
+    domain: "xbox.com",
+    colors: { primary: "#107C10", bg: "#ffffff" }
+  },
+  twitch: {
+    id: "twitch",
+    name: "Twitch",
+    type: "brandfetch",
+    domain: "twitch.tv",
+    colors: { primary: "#9146FF", bg: "#ffffff" }
+  },
+  epicgames: {
+    id: "epicgames",
+    name: "Epic Games",
+    type: "brandfetch",
+    domain: "epicgames.com",
+    colors: { primary: "#313131", bg: "#ffffff" }
+  },
+  // --- PRODUCTIVITY & TECH ---
+  microsoft: {
+    id: "microsoft",
+    name: "Microsoft",
+    type: "brandfetch",
+    domain: "microsoft.com",
+    colors: { primary: "#F25022", bg: "#ffffff" }
+  },
+  adobe: {
+    id: "adobe",
+    name: "Adobe",
+    type: "brandfetch",
+    domain: "adobe.com",
+    colors: { primary: "#FF0000", bg: "#ffffff" }
+  },
+  chatgpt: {
+    id: "chatgpt",
+    name: "ChatGPT",
+    type: "brandfetch",
+    domain: "openai.com",
+    colors: { primary: "#10A37F", bg: "#ffffff" }
+  },
+  canva: {
+    id: "canva",
+    name: "Canva",
+    type: "brandfetch",
+    domain: "canva.com",
+    colors: { primary: "#00C4CC", bg: "#ffffff" }
+  },
+  notion: {
+    id: "notion",
+    name: "Notion",
+    type: "brandfetch",
+    domain: "notion.so",
+    colors: { primary: "#000000", bg: "#ffffff" }
+  },
+  // --- SHOPPING & LOCAL ---
+  ciceksepeti: {
+    id: "ciceksepeti",
+    name: "Çiçeksepeti",
+    type: "brandfetch",
+    domain: "ciceksepeti.com",
+    colors: { primary: "#0066CC", bg: "#ffffff" }
+  },
+  sahibinden: {
+    id: "sahibinden",
+    name: "Sahibinden",
+    type: "brandfetch",
+    domain: "sahibinden.com",
+    colors: { primary: "#F9C605", bg: "#ffffff" }
+  },
+  dolap: {
+    id: "dolap",
+    name: "Dolap",
+    type: "brandfetch",
+    domain: "dolap.com",
+    colors: { primary: "#FF4E72", bg: "#ffffff" }
+  },
+  gardrops: {
+    id: "gardrops",
+    name: "Gardrops",
+    type: "brandfetch",
+    domain: "gardrops.com",
+    colors: { primary: "#FD2F70", bg: "#ffffff" }
+  },
+  // --- SOCIAL ---
+  twitter: {
+    id: "twitter",
+    name: "X (Twitter)",
+    type: "brandfetch",
+    domain: "twitter.com",
+    colors: { primary: "#000000", bg: "#ffffff" }
+  },
+  instagram: {
+    id: "instagram",
+    name: "Instagram",
+    type: "brandfetch",
+    domain: "instagram.com",
+    colors: { primary: "#E1306C", bg: "#ffffff" }
+  },
+  linkedin: {
+    id: "linkedin",
+    name: "LinkedIn",
+    type: "brandfetch",
+    domain: "linkedin.com",
+    colors: { primary: "#0A66C2", bg: "#ffffff" }
+  },
+  facebook: {
+    id: "facebook",
+    name: "Facebook",
+    type: "brandfetch",
+    domain: "facebook.com",
+    colors: { primary: "#1877F2", bg: "#ffffff" }
+  },
+  pinterest: {
+    id: "pinterest",
+    name: "Pinterest",
+    type: "brandfetch",
+    domain: "pinterest.com",
+    colors: { primary: "#E60023", bg: "#ffffff" }
+  },
+  // --- MUSIC ---
+  deezer: {
+    id: "deezer",
+    name: "Deezer",
+    type: "brandfetch",
+    domain: "deezer.com",
+    colors: { primary: "#EF5466", bg: "#ffffff" }
+  },
+  applemusic: {
+    id: "applemusic",
+    name: "Apple Music",
+    type: "brandfetch",
+    domain: "music.apple.com",
+    colors: { primary: "#FA243C", bg: "#ffffff" }
   }
 };
 

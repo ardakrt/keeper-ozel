@@ -194,13 +194,16 @@ export default function AccountItem({ account, onRefresh }: { account: Account; 
           <div className="bg-white/[0.02] dark:bg-white/[0.02] light:bg-white border border-white/[0.05] dark:border-white/[0.05] light:border-zinc-200 hover:border-white/[0.1] dark:hover:border-white/[0.1] light:hover:border-zinc-300 hover:bg-white/[0.05] dark:hover:bg-white/[0.05] light:hover:bg-zinc-50/50 rounded-xl p-6 relative transition-all overflow-hidden light:shadow-sm light:hover:shadow-md">
 
             {/* Service Icon and Name */}
-            <div className="flex items-start gap-3 mb-5 relative z-10">
-              <ServiceLogo 
-                brand={getBrandInfo(account.service_name ?? account.service ?? "")} 
-                fallbackText={account.service_name ?? account.service ?? "?"} 
-                size="md" 
-              />
-              <div className="flex-1 min-w-0 pt-0.5">
+            <div className="flex items-center gap-4 mb-5 relative z-10">
+              <div className="w-12 h-12 rounded-2xl border border-zinc-200 dark:border-white/10 flex-shrink-0 flex items-center justify-center overflow-hidden">
+                <ServiceLogo 
+                  brand={getBrandInfo(account.service_name ?? account.service ?? "")} 
+                  fallbackText={account.service_name ?? account.service ?? "?"} 
+                  size="md" 
+                  className="!w-full !h-full !rounded-none shadow-none border-none !bg-transparent"
+                />
+              </div>
+              <div className="flex-1 min-w-0">
                 <h3 className="text-lg font-bold text-white dark:text-white light:text-zinc-900 truncate tracking-tight">
                   {account.service_name ?? account.service ?? "(Hizmet)"}
                 </h3>

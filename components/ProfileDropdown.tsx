@@ -60,8 +60,8 @@ export default function ProfileDropdown({ user }: ProfileDropdownProps) {
     setIsOpen(false);
   };
 
-  const initial = user.email?.charAt(0).toUpperCase() || "U";
-  const userName = user.user_metadata?.full_name || user.email?.split("@")[0];
+  const userName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split("@")[0];
+  const initial = (user.user_metadata?.full_name || user.user_metadata?.name || user.email || "U").charAt(0).toUpperCase();
 
   return (
     <div className="relative inline-block text-left" ref={dropdownRef}>

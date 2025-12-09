@@ -151,7 +151,7 @@ export default function StepPassword({
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Şifreniz"
-            className={`w-full h-12 px-4 bg-zinc-800/50 border-2 border-zinc-700 text-white placeholder:text-zinc-500 rounded-xl focus:outline-none focus:border-emerald-500 transition-all ${
+            className={`w-full h-12 px-4 bg-zinc-100 dark:bg-white/5 border border-zinc-300 dark:border-white/10 text-zinc-900 dark:text-white rounded-xl placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all ${
               status === "error" ? "border-red-500" : ""
             }`}
             disabled={status === "checking" || status === "success"}

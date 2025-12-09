@@ -24,7 +24,12 @@ export default function ProfileMenu({ user, onViewChange, onRefresh }: ProfileMe
     <div className="bg-transparent">
       {/* Avatar ve Kullanıcı Bilgileri */}
       <div className="flex flex-col items-center mb-8">
-        <AvatarUploadForm currentAvatar={user?.user_metadata?.avatar_url} userId={user?.id} onRefresh={onRefresh} />
+        <AvatarUploadForm 
+          currentAvatar={user?.user_metadata?.avatar_url} 
+          userId={user?.id} 
+          userName={user?.user_metadata?.full_name || user?.user_metadata?.name}
+          onRefresh={onRefresh} 
+        />
         <h2 className="text-2xl font-bold text-white dark:text-white light:text-zinc-900 text-center mt-4">
           {user?.user_metadata?.full_name || "Kullanıcı"}
         </h2>

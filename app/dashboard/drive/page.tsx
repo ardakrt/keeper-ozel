@@ -303,13 +303,13 @@ export default function DrivePage() {
   if (!isConnected) {
     return (
       <div className="flex-1 flex items-center justify-center h-full p-8">
-        <div className="text-center max-w-md">
-          <div className="w-20 h-20 bg-zinc-100 dark:bg-white/5 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-zinc-200 dark:border-white/10">
-            <HardDrive className="w-10 h-10 text-zinc-900 dark:text-white" />
+        <div className="text-center w-full max-w-8xl rounded-3xl border border-zinc-200 dark:border-white/10 bg-white/50 dark:bg-black/20 backdrop-blur-xl p-50 shadow-xl">
+          <div className="w-24 h-24 bg-zinc-100 dark:bg-white/5 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-zinc-200 dark:border-white/10">
+            <HardDrive className="w-12 h-12 text-zinc-900 dark:text-white" />
           </div>
-          <h2 className="text-2xl font-bold text-zinc-900 dark:text-white mb-2">Drive'ım</h2>
-          <p className="text-zinc-500 dark:text-zinc-400 mb-8">Dosyalarına erişmek için bağlan.</p>
-          <button onClick={handleConnect} className="bg-zinc-900 dark:bg-white text-white dark:text-black font-bold py-3 px-8 rounded-xl hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors mt-4">Google ile Bağlan</button>
+          <h2 className="text-3xl font-bold text-zinc-900 dark:text-white mb-3">Drive'ım</h2>
+          <p className="text-lg text-zinc-500 dark:text-zinc-400 mb-6">Dosyalarına erişmek için bağlan.</p>
+          <button onClick={handleConnect} className="bg-zinc-900 dark:bg-white text-white dark:text-black font-bold py-3 px-8 rounded-2xl hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors text-lg shadow-lg shadow-zinc-900/20 dark:shadow-white/10">Google ile Bağlan</button>
         </div>
       </div>
     );

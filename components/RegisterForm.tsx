@@ -4,8 +4,9 @@ import Link from "next/link";
 import { sendVerificationCode, verifyAndCompleteRegistration } from "@/app/auth-actions";
 import { motion, AnimatePresence, easeOut, easeIn } from "framer-motion";
 import { AlertCircle, Eye, EyeOff } from "lucide-react";
+import StepPin from "./auth/StepPin"; // Import new step component
 
-type Step = "emailInput" | "detailsInput" | "verificationInput";
+type Step = "emailInput" | "detailsInput" | "verificationInput" | "pinCreate";
 
 interface RegisterFormProps {
   onStepChange?: (step: Step) => void;
@@ -148,7 +149,13 @@ export default function RegisterForm({ onStepChange, backTrigger }: RegisterForm
     } catch (err: any) {
       console.error("Register Error:", err);
       setLoading(false);
-      setError(err.message || "Bir hata oluştu");
+      
+      let errorMessage = err.message || "Bir hata oluştu";
+      if (errorMessage.includes("Çok fazla") || errorMessage.includes("limit")) {
+        errorMessage = "Çok sık istekte bulunuldu. Lütfen 1 dakika bekleyin.";
+      }
+      
+      setError(errorMessage);
     }
   }
 
@@ -172,9 +179,9 @@ export default function RegisterForm({ onStepChange, backTrigger }: RegisterForm
         throw new Error(result.message || "Kayıt tamamlanamadı");
       }
 
-      if (result.redirect) {
-        window.location.href = result.redirect;
-      }
+      // Instead of redirecting immediately, move to PIN creation step
+      setLoading(false);
+      setStep("pinCreate");
 
     } catch (err: any) {
       setLoading(false);
@@ -362,7 +369,7 @@ export default function RegisterForm({ onStepChange, backTrigger }: RegisterForm
             {error && <motion.div variants={itemVariants} className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 flex items-start gap-3"><AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" /><p className="text-sm text-red-400 font-medium">{error}</p></motion.div>}
 
             <motion.button variants={itemVariants} onClick={handleFinalRegister} disabled={loading || verificationCode.join("").length !== 6} className="w-full h-12 rounded-xl font-bold text-sm tracking-wide bg-gradient-to-r from-emerald-500 to-cyan-600 text-white shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100">
-              {loading ? "Kaydediliyor..." : "Kaydı Tamamla"}
+              {loading ? "Doğrulanıyor..." : "Doğrula ve İlerle"}
             </motion.button>
 
             <motion.div variants={itemVariants} className="text-center mt-2 flex flex-col gap-2">
@@ -370,6 +377,14 @@ export default function RegisterForm({ onStepChange, backTrigger }: RegisterForm
               {resendStatus && <motion.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="text-xs font-medium text-emerald-500">{resendStatus}</motion.p>}
             </motion.div>
           </motion.div>
+        )}
+
+        {step === "pinCreate" && (
+          <StepPin 
+            onSuccess={() => window.location.href = "/dashboard"}
+            variants={containerVariants}
+            itemVariants={itemVariants}
+          />
         )}
       </AnimatePresence>
     </div>

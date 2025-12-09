@@ -197,20 +197,22 @@ export default function IbanItem({ iban, onRefresh }: { iban: Iban; onRefresh?: 
             <div className="absolute inset-0 light:bg-gradient-to-br light:from-purple-50/30 light:to-transparent dark:hidden pointer-events-none"></div>
 
             {/* Banka İkonu ve Adı */}
-            <div className="flex items-start gap-3 mb-4 relative z-10">
-              {(() => {
-                const bankInfo = getBankInfo(iban.label || "");
-                if (bankInfo) {
-                  return <ServiceLogo brand={bankInfo} fallbackText={iban.label || "?"} size="md" />;
-                }
-                return (
-                  <div className="p-2.5 bg-purple-600/10 dark:bg-purple-600/10 light:bg-purple-100 rounded-lg flex-shrink-0">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-purple-400 dark:text-purple-400 light:text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
-                    </svg>
-                  </div>
-                );
-              })()}
+            <div className="flex items-center gap-4 mb-4 relative z-10">
+              <div className="w-12 h-12 rounded-2xl border border-zinc-200 dark:border-white/10 flex-shrink-0 flex items-center justify-center overflow-hidden">
+                {(() => {
+                  const bankInfo = getBankInfo(iban.label || "");
+                  if (bankInfo) {
+                    return <ServiceLogo brand={bankInfo} fallbackText={iban.label || "?"} size="md" className="!w-full !h-full !rounded-none shadow-none border-none !bg-transparent" />;
+                  }
+                  return (
+                    <div className="w-full h-full bg-purple-100 dark:bg-purple-500/20 rounded-xl flex items-center justify-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-purple-500 dark:text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
+                      </svg>
+                    </div>
+                  );
+                })()}
+              </div>
               <div className="flex-1 min-w-0">
                 <h3 className="text-base font-semibold text-white dark:text-white light:text-zinc-900 truncate">{iban.label ?? "(Etiketsiz)"}</h3>
                 <p className="text-xs text-zinc-500 dark:text-zinc-500 light:text-zinc-600 mt-0.5">Banka Hesabı</p>
